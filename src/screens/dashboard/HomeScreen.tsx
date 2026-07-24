@@ -21,6 +21,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
+import { RouteService, LatLng } from '../../services/RouteService';
 import { OrderRequestModal } from '../../components/orders/OrderRequestModal';
 import { PaymentConfirmationModal } from '../../components/orders/PaymentConfirmationModal';
 import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
@@ -47,6 +48,7 @@ export const HomeScreen = () => {
   const [offerModalVisible, setOfferModalVisible] = useState<boolean>(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
 
   // Default map center: Sector 83, Mohali, Punjab, India (WorldTech Square)
   const MOHALI_COORDS = {
@@ -333,6 +335,73 @@ export const HomeScreen = () => {
     }
   }, [driver]);
 
+  // Fetch and update actual road navigation route whenever driver moves or target changes
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!activeOrder || !location) {
+      setRouteCoordinates([]);
+      return;
+    }
+
+    const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+    const targetLat = isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat;
+    const targetLng = isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng;
+
+    if (!targetLat || !targetLng) {
+      setRouteCoordinates([]);
+      return;
+    }
+
+    const origin: LatLng = { latitude: location.latitude, longitude: location.longitude };
+    const destination: LatLng = { latitude: Number(targetLat), longitude: Number(targetLng) };
+
+    RouteService.getRoadRoute(origin, destination)
+      .then((coords) => {
+        if (isMounted && coords && coords.length > 0) {
+          setRouteCoordinates(coords);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch road route:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    location?.latitude,
+    location?.longitude,
+    activeOrder?.id,
+    activeOrder?.status,
+    activeOrder?.pickup?.lat,
+    activeOrder?.pickup?.lng,
+    activeOrder?.dropoff?.lat,
+    activeOrder?.dropoff?.lng,
+  ]);
+
+  // Fit camera bounds when active order status or target changes
+  useEffect(() => {
+    if (mapRef.current && activeOrder && location) {
+      const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+      const targetLat = isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat;
+      const targetLng = isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng;
+
+      if (targetLat && targetLng) {
+        mapRef.current.fitToCoordinates(
+          [
+            { latitude: location.latitude, longitude: location.longitude },
+            { latitude: Number(targetLat), longitude: Number(targetLng) },
+          ],
+          {
+            edgePadding: { top: 140, right: 60, bottom: 280, left: 60 },
+            animated: true,
+          }
+        );
+      }
+    }
+  }, [activeOrder?.status, activeOrder?.id]);
+
   // Offer polling when driver is online and has no active order
   useEffect(() => {
     let offerInterval: any;
@@ -593,17 +662,23 @@ export const HomeScreen = () => {
                 </Marker>
               ) : null}
 
-              {/* Route Polyline connecting Driver to active target */}
+              {/* Route Polyline connecting Driver to active target along actual roads */}
               {location && (
                 <Polyline
-                  coordinates={[
-                    { latitude: location.latitude, longitude: location.longitude },
-                    activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
-                      ? { latitude: activeOrder.dropoff.lat, longitude: activeOrder.dropoff.lng }
-                      : { latitude: activeOrder.pickup.lat, longitude: activeOrder.pickup.lng },
-                  ]}
-                  strokeColor={activeOrder.status === 'picked_up' ? '#22c55e' : '#2563eb'}
-                  strokeWidth={4}
+                  coordinates={
+                    routeCoordinates.length > 0
+                      ? routeCoordinates
+                      : [
+                          { latitude: location.latitude, longitude: location.longitude },
+                          activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
+                            ? { latitude: Number(activeOrder.dropoff.lat), longitude: Number(activeOrder.dropoff.lng) }
+                            : { latitude: Number(activeOrder.pickup.lat), longitude: Number(activeOrder.pickup.lng) },
+                        ]
+                  }
+                  strokeColor="#2563eb"
+                  strokeWidth={5}
+                  lineCap="round"
+                  lineJoin="round"
                 />
               )}
             </>
