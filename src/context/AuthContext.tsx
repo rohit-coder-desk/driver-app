@@ -10,7 +10,7 @@ export interface AuthContextType {
   unverifiedPhone: string | null;
   otpCodeForTesting: string | null; // Developer aid to show current OTP in UI
   login: (username: string, password?: string) => Promise<void>;
-  register: (name: string, phone: string, email?: string, password?: string, vehicleTypeId?: number) => Promise<void>;
+  register: (name: string, phone: string, email?: string, password?: string, vehicleTypeId?: number, username?: string) => Promise<void>;
   sendOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, otp: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -88,7 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     phone: string,
     email?: string,
     password?: string,
-    vehicleTypeId?: number
+    vehicleTypeId?: number,
+    username?: string
   ) => {
     const response = await AuthService.register({
       name,
@@ -96,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       password,
       vehicleTypeId,
-      username: phone, // Defaults username to phone
+      username: username || phone,
     });
 
     setUnverifiedPhone(phone);

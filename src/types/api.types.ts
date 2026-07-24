@@ -36,6 +36,14 @@ export interface Driver {
   vehiclePlate?: string;
   vehicleColor?: string;
   vehicleBrand?: string;
+  avatarPhoto?: string | null;
+  vehiclePhoto?: string | null;
+  drivingLicencePhoto?: string | null;
+  drivingLicenceBackPhoto?: string | null;
+  identityCardPhoto?: string | null;
+  identityCardBackPhoto?: string | null;
+  rcPhoto?: string | null;
+  insurancePhoto?: string | null;
 }
 
 export interface VehicleType {

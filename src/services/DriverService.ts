@@ -20,6 +20,24 @@ export const DriverService = {
     }
   },
 
+  uploadDocuments: async (formData: FormData) => {
+    try {
+      const response = await driverApi.uploadDocuments(formData);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || 'Failed to upload documents.';
+    }
+  },
+
+  updateLocation: async (latitude: number, longitude: number) => {
+    try {
+      const response = await driverApi.updateLocation(latitude, longitude);
+      return response.data;
+    } catch (error: any) {
+      console.warn('Failed to update live location:', error);
+    }
+  },
+
   getVehicleTypes: async (): Promise<VehicleType[]> => {
     try {
       const response = await driverApi.getVehicleTypes();

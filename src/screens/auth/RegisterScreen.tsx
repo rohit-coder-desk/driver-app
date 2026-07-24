@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,69 +8,56 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
-import { DriverService } from '../../services/DriverService';
-import { VehicleType } from '../../types/api.types';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
 
+// Custom Graphical Eye Icon Component with Slash toggle
+const EyeIcon = ({ visible }: { visible: boolean }) => {
+  return (
+    <View style={styles.eyeIconContainer}>
+      {/* Outer Eye Shape */}
+      <View style={styles.eyeOuter} />
+      {/* Pupil */}
+      <View style={styles.eyeInner} />
+      {/* Diagonal Slash Line for "Eye Off" state */}
+      {!visible && <View style={styles.eyeSlash} />}
+    </View>
+  );
+};
+
 export const RegisterScreen = () => {
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(undefined);
-  
+
+  const [securePassword, setSecurePassword] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
 
   const { register } = useAuth();
   const navigation = useNavigation<any>();
 
-  // Fetch active vehicle types dynamically on mount
-  useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        const list = await DriverService.getVehicleTypes();
-        setVehicleTypes(list);
-        if (list.length > 0) {
-          setSelectedVehicleId(list[0].id);
-        }
-      } catch (err) {
-        console.error('Failed to load vehicles:', err);
-      } finally {
-        setLoadingVehicles(false);
-      }
-    };
-    fetchVehicles();
-  }, []);
-
   const handleRegister = async () => {
     setError(null);
-    if (!name.trim() || !phone.trim() || !password.trim()) {
-      setError('Name, phone number, and password are required fields.');
-      return;
-    }
-
-    if (!selectedVehicleId) {
-      setError('Please select a vehicle type.');
+    if (!name.trim() || !username.trim() || !phone.trim() || !password.trim()) {
+      setError('Name, username, mobile number, and password are required fields.');
       return;
     }
 
     // Format phone to have + country prefix if not present for compliance
     let formattedPhone = phone.trim();
     if (!formattedPhone.startsWith('+')) {
-      // Default to Indian prefix (+91) if it starts with standard 10 digit series, or let users type it
       if (formattedPhone.length === 10) {
         formattedPhone = `+91${formattedPhone}`;
       } else {
-        setError('Please enter your phone number with country code (e.g. +919876543210).');
+        setError('Please enter your mobile number with country code (e.g. +919876543210).');
         return;
       }
     }
@@ -82,7 +69,8 @@ export const RegisterScreen = () => {
         formattedPhone,
         email.trim() || undefined,
         password,
-        selectedVehicleId
+        undefined, // vehicleTypeId is removed
+        username.trim()
       );
       // Navigate to OTP verification screen on success
       navigation.navigate(ROUTES.OTP_VERIFICATION);
@@ -133,9 +121,23 @@ export const RegisterScreen = () => {
             />
           </View>
 
-          {/* Phone Number */}
+          {/* Username */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>Username</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. amit_driver"
+              placeholderTextColor="#475569"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          {/* Mobile Number */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Mobile Number</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. +919876543210 or 10-digit number"
@@ -165,45 +167,21 @@ export const RegisterScreen = () => {
           {/* Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Min 6 characters"
-              placeholderTextColor="#475569"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          {/* Dynamic Vehicle Type Selector */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Vehicle Type</Text>
-            {loadingVehicles ? (
-              <ActivityIndicator size="small" color={COLORS.primary} style={styles.vehicleLoader} />
-            ) : (
-              <View style={styles.vehicleGrid}>
-                {vehicleTypes.map((vehicle) => {
-                  const isSelected = selectedVehicleId === vehicle.id;
-                  return (
-                    <TouchableOpacity
-                      key={vehicle.id}
-                      style={[styles.vehicleCard, isSelected && styles.selectedVehicleCard]}
-                      onPress={() => setSelectedVehicleId(vehicle.id)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.vehicleTitle, isSelected && styles.selectedVehicleText]}>
-                        {vehicle.title}
-                      </Text>
-                      {vehicle.description ? (
-                        <Text style={styles.vehicleDesc}>{vehicle.description}</Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Min 6 characters"
+                placeholderTextColor="#475569"
+                secureTextEntry={securePassword}
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity onPress={() => setSecurePassword(!securePassword)} style={styles.eyeButton}>
+                <EyeIcon visible={!securePassword} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Register Button */}
@@ -299,43 +277,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  vehicleLoader: {
-    alignSelf: 'flex-start',
-    marginVertical: 10,
-    marginLeft: 8,
-  },
-  vehicleGrid: {
+  passwordContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  vehicleCard: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 14,
-    padding: 14,
+    height: 52,
+    paddingHorizontal: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '500',
+    height: '100%',
+    padding: 0,
+  },
+  eyeButton: {
+    padding: 8,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  selectedVehicleCard: {
-    borderColor: COLORS.primary,
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+  eyeIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
-  vehicleTitle: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  eyeOuter: {
+    width: 20,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#94a3b8',
+    backgroundColor: 'transparent',
   },
-  selectedVehicleText: {
-    color: COLORS.primaryLight,
+  eyeInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94a3b8',
+    position: 'absolute',
   },
-  vehicleDesc: {
-    color: '#64748b',
-    fontSize: 10,
-    textAlign: 'center',
-    fontWeight: '500',
+  eyeSlash: {
+    width: 24,
+    height: 2,
+    backgroundColor: '#94a3b8',
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
   },
   button: {
     backgroundColor: COLORS.primary,
