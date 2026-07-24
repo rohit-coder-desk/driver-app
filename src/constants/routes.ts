@@ -5,6 +5,8 @@ export const ROUTES = {
   OTP_VERIFICATION: 'OTP_VERIFICATION',
   HOME: 'HOME',
   PROFILE: 'PROFILE',
+  MY_PROFILE: 'MY_PROFILE',
+  EARNINGS: 'EARNINGS',
 } as const;
 
 export type RouteNames = typeof ROUTES[keyof typeof ROUTES];

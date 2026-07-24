@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   sendBtn: {
     height: 46,
     paddingHorizontal: 20,
-    backgroundColor: '#22c55e',
+    backgroundColor: COLORS.primary,
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',

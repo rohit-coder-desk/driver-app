@@ -27,6 +27,7 @@ import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
+import { HomeIcon, ProfileIcon, EditIcon, EarningsIcon, LogoutIcon } from '../../components/common/Icons';
 import { API_BASE_URL } from '../../config/env';
 
 const { width, height } = Dimensions.get('window');
@@ -612,8 +613,13 @@ export const HomeScreen = () => {
         /* Offline State: Styled Clean Dashboard Card */
         <View style={styles.offlineContainer}>
           <View style={styles.offlineCenterBox}>
-            <View style={styles.carCircle}>
-              <Text style={styles.carEmoji}>🚘</Text>
+            <View style={styles.offlineCircleIllustration}>
+              <View style={styles.wifiIconBadge}>
+                <Text style={styles.wifiIconEmoji}>📶</Text>
+                <View style={styles.wifiCrossBadge}>
+                  <Text style={styles.wifiCrossText}>✕</Text>
+                </View>
+              </View>
             </View>
             <Text style={styles.youreOfflineText}>YOU'RE OFFLINE</Text>
             <Text style={styles.offlineDesc}>
@@ -713,7 +719,7 @@ export const HomeScreen = () => {
       ) : isOnline ? (
         /* When approved and active online, show the status pill */
         <View style={styles.searchPill}>
-          <Text style={styles.searchPillIcon}>🔍</Text>
+          {/* <Text style={styles.searchPillIcon}>🔍</Text> */}
           <Text style={styles.searchPillText}>Waiting for offers...</Text>
         </View>
       ) : (
@@ -755,52 +761,113 @@ export const HomeScreen = () => {
 
           {/* Custom Side Drawer Sidebar */}
           <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
-            {/* Drawer Header */}
-            <View style={styles.drawerHeader}>
-              <View style={styles.avatarBorder}>
-                {driver?.avatarPhoto ? (
-                  <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.drawerAvatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder} />
-                )}
+            <View style={styles.drawerMainContent}>
+              {/* Drawer Header */}
+              <View style={styles.drawerHeader}>
+                <View style={styles.avatarBorder}>
+                  {driver?.avatarPhoto ? (
+                    <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.drawerAvatar} />
+                  ) : (
+                    <Text style={styles.avatarInitialsText}>
+                      {driver?.name ? driver.name.charAt(0).toUpperCase() : 'D'}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.drawerHeaderDetails}>
+                  <Text style={styles.drawerNameText} numberOfLines={1}>
+                    {driver?.name || 'Driver'}
+                  </Text>
+                  <Text style={styles.drawerPhoneText} numberOfLines={1}>
+                    {driver?.phone || driver?.username || 'Driver Portal'}
+                  </Text>
+                  <View style={styles.drawerStatusBadge}>
+                    <View style={[styles.drawerStatusDot, { backgroundColor: isOnline ? '#10b981' : '#64748b' }]} />
+                    <Text style={styles.drawerStatusText}>
+                      {isOnline ? 'ONLINE' : 'OFFLINE'}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <Text style={styles.drawerNameText}>{driver?.name || 'parveen driver'}</Text>
+
+              {/* Drawer Links */}
+              <ScrollView
+                style={styles.drawerMenu}
+                contentContainerStyle={styles.drawerMenuContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <TouchableOpacity
+                  style={[styles.drawerItem, styles.activeDrawerItem]}
+                  onPress={() => setDrawerOpen(false)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.drawerItemIconBox, styles.activeDrawerItemIconBox]}>
+                    <HomeIcon color={COLORS.primary} size={18} />
+                  </View>
+                  <Text style={[styles.drawerItemText, styles.activeDrawerItemText]}>Home</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    navigation.navigate(ROUTES.MY_PROFILE);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.drawerItemIconBox}>
+                    <ProfileIcon color="#64748b" size={18} />
+                  </View>
+                  <Text style={styles.drawerItemText}>My Profile</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    navigation.navigate(ROUTES.PROFILE);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.drawerItemIconBox}>
+                    <EditIcon color="#64748b" size={18} />
+                  </View>
+                  <Text style={styles.drawerItemText}>Edit Profile</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    navigation.navigate(ROUTES.EARNINGS);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.drawerItemIconBox}>
+                    <EarningsIcon color="#64748b" size={18} />
+                  </View>
+                  <Text style={styles.drawerItemText}>Earnings</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
 
-            {/* Drawer Links */}
-            <ScrollView style={styles.drawerMenu} contentContainerStyle={styles.drawerMenuContent}>
-              <TouchableOpacity style={styles.drawerItem} onPress={() => setDrawerOpen(false)}>
-                <Text style={styles.drawerItemText}>Home</Text>
-              </TouchableOpacity>
-
+            {/* Drawer Bottom Logout Button - FIXED AT VERY BOTTOM */}
+            <View style={styles.drawerFooter}>
               <TouchableOpacity
-                style={styles.drawerItem}
+                style={styles.logoutBtn}
                 onPress={() => {
                   setDrawerOpen(false);
-                  Alert.alert(
-                    'My Profile',
-                    `Name: ${driver?.name || 'N/A'}\nUsername: ${driver?.username || 'N/A'}\nPhone: ${driver?.phone || 'N/A'}\nEmail: ${driver?.email || 'N/A'}\n\nStatus: ${driver?.status?.toUpperCase() || 'OFFLINE'}\nVerification: ${driver?.authorizationStatus?.toUpperCase() || 'PENDING'}\n\nVehicle: ${driver?.vehicleColor || ''} ${driver?.vehicleBrand || ''} ${driver?.vehicleModel || ''}\nPlate: ${driver?.vehiclePlate || 'N/A'}`
-                  );
+                  logout();
                 }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.drawerItemText}>My Profile</Text>
+                <LogoutIcon color="#ef4444" size={18} />
+                <Text style={styles.logoutBtnText}>Logout</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerOpen(false); navigation.navigate(ROUTES.PROFILE); }}>
-                <Text style={styles.drawerItemText}>Edit Profile</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerOpen(false); Alert.alert('Earnings', `Total Earnings Balance: ₹${driver?.balance?.toFixed(2) || '0.00'}`); }}>
-                <Text style={styles.drawerItemText}>Earnings</Text>
-              </TouchableOpacity>
-
-              {/* Drawer Bottom Logout Button */}
-              <View style={styles.drawerFooter}>
-                <TouchableOpacity style={styles.logoutBtn} onPress={() => { setDrawerOpen(false); logout(); }}>
-                  <Text style={styles.logoutBtnText}>Logout</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+            </View>
           </Animated.View>
         </>
       )}
@@ -823,24 +890,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  carCircle: {
+  offlineCircleIllustration: {
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f0f3ff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000000',
+    borderColor: '#e0e7ff',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  carEmoji: {
-    fontSize: 64,
+  wifiIconBadge: {
+    width: 72,
+    height: 72,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  wifiIconEmoji: {
+    fontSize: 46,
+  },
+  wifiCrossBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#ef4444',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  wifiCrossText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   youreOfflineText: {
     fontSize: 22,
@@ -853,7 +945,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 20,
     paddingHorizontal: 12,
   },
   bigGoOnlineBtn: {
@@ -861,16 +953,16 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 34 : 20,
     left: 16,
     right: 16,
-    backgroundColor: '#5F093D',
-    borderRadius: 14,
-    height: 52,
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#5F093D',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 10,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
     zIndex: 10,
   },
   bigGoOnlineText: {
@@ -1129,77 +1221,161 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: '#5F093D',
+    backgroundColor: '#ffffff',
     zIndex: 100,
-    paddingTop: Platform.OS === 'ios' ? 50 : Math.max(StatusBar.currentHeight || 0, 24) + 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 16,
+    justifyContent: 'space-between',
+    shadowColor: '#000000',
+    shadowOffset: { width: 6, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  drawerMainContent: {
+    flex: 1,
   },
   drawerHeader: {
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'flex-start',
+    backgroundColor: '#0f172a',
+    paddingTop: Platform.OS === 'ios' ? 56 : Math.max(StatusBar.currentHeight || 0, 24) + 16,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomRightRadius: 24,
   },
   avatarBorder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: '#ffffff',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2.5,
+    borderColor: '#2563eb',
+    backgroundColor: '#1e293b',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
     overflow: 'hidden',
   },
   drawerAvatar: {
     width: '100%',
     height: '100%',
   },
-  avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#cbd5e1',
+  avatarInitialsText: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  drawerHeaderDetails: {
+    flex: 1,
+    marginLeft: 14,
   },
   drawerNameText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  drawerPhoneText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  drawerStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  drawerStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  drawerStatusText: {
+    color: '#e2e8f0',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   drawerMenu: {
     flex: 1,
   },
   drawerMenuContent: {
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 6,
   },
   drawerItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
+  },
+  activeDrawerItem: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  drawerItemIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeDrawerItemIconBox: {
+    backgroundColor: '#dbeafe',
+  },
+  drawerItemEmoji: {
+    fontSize: 18,
   },
   drawerItemText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  drawerFooter: {
-    marginTop: 20,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    paddingTop: 16,
-  },
-  logoutBtn: {
-    paddingVertical: 10,
-  },
-  logoutBtnText: {
-    color: '#ffffff',
+    flex: 1,
     fontSize: 15,
     fontWeight: '600',
+    color: '#334155',
+    marginLeft: 12,
+  },
+  activeDrawerItemText: {
+    color: '#2563eb',
+    fontWeight: '700',
+  },
+  drawerItemChevron: {
+    fontSize: 20,
+    fontWeight: '400',
+    color: '#94a3b8',
+  },
+  drawerFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  logoutBtn: {
+    backgroundColor: 'transparent',
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 12,
+    gap: 12,
+  },
+  logoutBtnEmoji: {
+    fontSize: 18,
+  },
+  logoutBtnText: {
+    color: '#ef4444',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   driverMarkerContainer: {
     alignItems: 'center',

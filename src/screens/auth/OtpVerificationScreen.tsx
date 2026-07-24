@@ -80,8 +80,14 @@ export const OtpVerificationScreen = () => {
           style={styles.backButton}
           onPress={() => {
             setError(null);
-            navigation.goBack();
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate(ROUTES.LOGIN);
+            }
           }}
+          activeOpacity={0.6}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>

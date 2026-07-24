@@ -152,8 +152,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   optionRowSelected: {
-    borderColor: '#22c55e',
-    backgroundColor: '#f0fdf4',
+    borderColor: COLORS.primary,
+    backgroundColor: '#eff6ff',
   },
   optionIcon: {
     fontSize: 20,
@@ -179,13 +179,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioCircleSelected: {
-    borderColor: '#22c55e',
+    borderColor: COLORS.primary,
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#22c55e',
+    backgroundColor: COLORS.primary,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -209,11 +209,11 @@ const styles = StyleSheet.create({
   confirmBtn: {
     flex: 1.5,
     height: 48,
-    backgroundColor: '#22c55e',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#22c55e',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,

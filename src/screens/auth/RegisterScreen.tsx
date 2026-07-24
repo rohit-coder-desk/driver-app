@@ -560,6 +560,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingRight: 16,
+    marginBottom: 12,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  backButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
 });
 
 export default RegisterScreen;
