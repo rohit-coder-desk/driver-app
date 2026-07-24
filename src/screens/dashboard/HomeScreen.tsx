@@ -15,6 +15,8 @@ import {
   ScrollView,
   Switch,
   StatusBar,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -112,6 +114,43 @@ export const HomeScreen = () => {
     }
     return () => clearInterval(intervalId);
   }, [isOnline]);
+
+  // Keep isOnline ref updated to avoid stale closure issues in AppState listener
+  const isOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    isOnlineRef.current = isOnline;
+  }, [isOnline]);
+
+  const isTogglingOfflineRef = useRef(false);
+
+  // Automatically update driver status to Offline when app moves to background/inactive
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (
+        (nextAppState === 'background' || nextAppState === 'inactive') &&
+        isOnlineRef.current &&
+        !isTogglingOfflineRef.current
+      ) {
+        isTogglingOfflineRef.current = true;
+        try {
+          // Immediately update local state to stop location watching & order polling
+          setIsOnline(false);
+          await DriverService.updateStatus('offline');
+          await refreshProfile().catch(() => {});
+        } catch (error) {
+          console.warn('Auto offline on app background failed:', error);
+        } finally {
+          isTogglingOfflineRef.current = false;
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const formatOnlineTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -669,11 +708,11 @@ export const HomeScreen = () => {
                     routeCoordinates.length > 0
                       ? routeCoordinates
                       : [
-                          { latitude: location.latitude, longitude: location.longitude },
-                          activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
-                            ? { latitude: Number(activeOrder.dropoff.lat), longitude: Number(activeOrder.dropoff.lng) }
-                            : { latitude: Number(activeOrder.pickup.lat), longitude: Number(activeOrder.pickup.lng) },
-                        ]
+                        { latitude: location.latitude, longitude: location.longitude },
+                        activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
+                          ? { latitude: Number(activeOrder.dropoff.lat), longitude: Number(activeOrder.dropoff.lng) }
+                          : { latitude: Number(activeOrder.pickup.lat), longitude: Number(activeOrder.pickup.lng) },
+                      ]
                   }
                   strokeColor="#2563eb"
                   strokeWidth={5}
@@ -788,13 +827,13 @@ export const HomeScreen = () => {
           onPress={() => navigation.navigate(ROUTES.PROFILE)}
           activeOpacity={0.9}
         >
-          <Text style={styles.rejectedTitle}>❌ Documents Rejected</Text>
+          <Text style={styles.rejectedTitle}> Documents Rejected</Text>
           <Text style={styles.rejectedSubtitle}>Admin rejected your submission. Tap to review and re-upload.</Text>
         </TouchableOpacity>
       ) : isOnline ? (
         /* When approved and active online, show the status pill */
         <View style={styles.searchPill}>
-          {/* <Text style={styles.searchPillIcon}>🔍</Text> */}
+          {/* <Text style={styles.searchPillIcon}>🔍</Text */}
           <Text style={styles.searchPillText}>Waiting for offers...</Text>
         </View>
       ) : (

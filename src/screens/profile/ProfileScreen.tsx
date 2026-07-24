@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   Platform,
   KeyboardAvoidingView,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -367,11 +368,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
