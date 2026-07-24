@@ -89,7 +89,7 @@ export const OtpVerificationScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Verify Number</Text>
-          <Text style={styles.subtitle}>Enter OTP Code</Text>
+          <Text style={styles.subtitle}>Enter 6-Digit OTP Code</Text>
         </View>
 
         {/* Card */}
@@ -123,7 +123,7 @@ export const OtpVerificationScreen = () => {
             <Text style={styles.label}>6-Digit Verification Code</Text>
             <TextInput
               placeholder="e.g. 123456"
-              placeholderTextColor="#475569"
+              placeholderTextColor="#94a3b8"
               keyboardType="number-pad"
               maxLength={6}
               value={otp}
@@ -156,7 +156,7 @@ export const OtpVerificationScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButtonText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -179,83 +179,83 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#ffffff',
+    color: '#0f172a',
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
+    fontWeight: '700',
+    color: '#2563eb',
     marginTop: 4,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#e2e8f0',
     padding: 24,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
   },
   phoneLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
     marginBottom: 20,
   },
   phoneValue: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontWeight: 'bold',
   },
   testBanner: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: '#eff6ff',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: '#bfdbfe',
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     marginBottom: 20,
   },
   testBannerLabel: {
-    color: COLORS.primaryLight,
+    color: '#2563eb',
     fontSize: 11,
     fontWeight: 'bold',
     letterSpacing: 1,
     marginBottom: 4,
   },
   testBannerCode: {
-    color: '#ffffff',
-    fontSize: 14,
+    color: '#0f172a',
+    fontSize: 15,
     fontWeight: 'bold',
   },
   errorContainer: {
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.2)',
+    borderColor: '#fecaca',
     borderRadius: 12,
     padding: 12,
     marginBottom: 18,
   },
   errorText: {
-    color: COLORS.error,
+    color: '#ef4444',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
   },
   successContainer: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: '#f0fdf4',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: '#bbf7d0',
     borderRadius: 12,
     padding: 12,
     marginBottom: 18,
   },
   successText: {
-    color: COLORS.success,
+    color: '#16a34a',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
@@ -266,20 +266,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94a3b8',
+    color: '#334155',
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     marginBottom: 8,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: '#cbd5e1',
     borderRadius: 14,
     paddingHorizontal: 16,
     height: 52,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
   },
@@ -287,18 +287,19 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     letterSpacing: 8,
+    color: '#0f172a',
   },
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#2563eb',
     borderRadius: 14,
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
   },
   buttonText: {
     color: '#ffffff',
@@ -313,14 +314,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resendText: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 13,
     fontWeight: '500',
   },
   resendLink: {
-    color: COLORS.primary,
+    color: '#2563eb',
     fontWeight: 'bold',
     fontSize: 13,
   },
 });
+
 export default OtpVerificationScreen;

@@ -85,8 +85,8 @@ export const LoginScreen = () => {
             <Text style={styles.label}>Phone Number or Username</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. +919876543210"
-              placeholderTextColor="#475569"
+              placeholder="Enter phone number or username"
+              placeholderTextColor="#94a3b8"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -99,8 +99,8 @@ export const LoginScreen = () => {
             <Text style={styles.label}>Password</Text>
             <TextInput
               style={styles.input}
-              placeholder="••••••••••••"
-              placeholderTextColor="#475569"
+              placeholder="Enter password"
+              placeholderTextColor="#94a3b8"
               secureTextEntry
               value={password}
               onChangeText={setPassword}
@@ -131,7 +131,7 @@ export const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8fafc',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -140,21 +140,23 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   logoContainer: {
-    width: 72,
-    height: 72,
+    width: 76,
+    height: 76,
     backgroundColor: '#ffffff',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     marginBottom: 16,
   },
   logoImage: {
@@ -162,52 +164,52 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   title: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: -1,
+    color: '#0f172a',
+    letterSpacing: -0.5,
   },
   blueText: {
-    color: COLORS.primary,
+    color: '#2563eb',
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: '#60a5fa',
-    letterSpacing: 4,
+    color: '#2563eb',
+    letterSpacing: 3,
     textTransform: 'uppercase',
     marginTop: 4,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#e2e8f0',
     padding: 24,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
   },
   cardHeader: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 20,
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   errorContainer: {
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.2)',
+    borderColor: '#fecaca',
     borderRadius: 12,
     padding: 12,
     marginBottom: 18,
   },
   errorText: {
-    color: COLORS.error,
+    color: '#ef4444',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
@@ -216,41 +218,41 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#94a3b8',
+    color: '#334155',
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
     marginBottom: 8,
-    marginLeft: 4,
+    marginLeft: 2,
   },
   input: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: '#cbd5e1',
     borderRadius: 14,
     paddingHorizontal: 16,
     height: 52,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
   },
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#2563eb',
     borderRadius: 14,
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: COLORS.primary,
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
@@ -259,13 +261,14 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerLink: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 13,
     fontWeight: '600',
   },
   footerLinkHighlight: {
-    color: COLORS.primary,
+    color: '#2563eb',
     fontWeight: 'bold',
   },
 });
+
 export default LoginScreen;

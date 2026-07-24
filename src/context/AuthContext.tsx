@@ -14,7 +14,7 @@ export interface AuthContextType {
   sendOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, otp: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: () => Promise<Driver | undefined>;
   setUnverifiedPhone: (phone: string | null) => void;
 }
 
@@ -140,8 +140,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const updatedProfile = await DriverService.getProfile();
       await AuthService.saveDriver(updatedProfile);
       setDriver(updatedProfile);
+      return updatedProfile;
     } catch (e) {
       console.error('Failed to sync/refresh driver profile:', e);
+      throw e;
     }
   };
 

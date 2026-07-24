@@ -36,6 +36,10 @@ export interface Driver {
   vehiclePlate?: string;
   vehicleColor?: string;
   vehicleBrand?: string;
+  latitude?: number;
+  longitude?: number;
+  drivingLicenceNumber?: string;
+  drivingLicenceExpiry?: string;
   avatarPhoto?: string | null;
   vehiclePhoto?: string | null;
   drivingLicencePhoto?: string | null;

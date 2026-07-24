@@ -25,7 +25,7 @@ export const SplashScreen = () => {
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.logoWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        {/* Logo container mimicking CDXLogo.jsx */}
+        {/* Logo container */}
         <View style={styles.iconContainer}>
           <Image
             source={require('../../assets/images/logo.png')}
@@ -43,7 +43,7 @@ export const SplashScreen = () => {
         </View>
       </Animated.View>
 
-      <ActivityIndicator size="small" color={COLORS.primary} style={styles.spinner} />
+      <ActivityIndicator size="small" color="#2563eb" style={styles.spinner} />
     </View>
   );
 };
@@ -51,7 +51,7 @@ export const SplashScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background, // Deep slate-950
+    backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -61,18 +61,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconContainer: {
-    width: 64,
-    height: 64,
+    width: 68,
+    height: 68,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   logoImage: {
     width: '100%',
@@ -85,16 +87,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: -1,
+    color: '#0f172a',
+    letterSpacing: -0.5,
   },
   blueText: {
-    color: COLORS.primary,
+    color: '#2563eb',
   },
   subtitle: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
-    color: '#60a5fa',
+    color: '#2563eb',
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -104,4 +106,5 @@ const styles = StyleSheet.create({
     bottom: 60,
   },
 });
+
 export default SplashScreen;
