@@ -16,9 +16,21 @@ import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
 
+// Custom Graphical Eye Icon Component with Slash toggle
+const EyeIcon = ({ visible }: { visible: boolean }) => {
+  return (
+    <View style={styles.eyeIconContainer}>
+      <View style={styles.eyeOuter} />
+      <View style={styles.eyeInner} />
+      {!visible && <View style={styles.eyeSlash} />}
+    </View>
+  );
+};
+
 export const LoginScreen = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [securePassword, setSecurePassword] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -72,7 +84,7 @@ export const LoginScreen = () => {
 
         {/* Form Card */}
         <View style={styles.card}>
-          <Text style={styles.cardHeader}>Secure Sign In</Text>
+          <Text style={styles.cardHeader}>Secure Log In</Text>
 
           {error ? (
             <View style={styles.errorContainer}>
@@ -82,10 +94,10 @@ export const LoginScreen = () => {
 
           {/* Username / Phone Field */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number or Username</Text>
+            <Text style={styles.label}>Username</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter phone number or username"
+              placeholder="Enter username"
               placeholderTextColor="#94a3b8"
               value={username}
               onChangeText={setUsername}
@@ -97,21 +109,26 @@ export const LoginScreen = () => {
           {/* Password Field */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter password"
-              placeholderTextColor="#94a3b8"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Enter password"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry={securePassword}
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity onPress={() => setSecurePassword(!securePassword)} style={styles.eyeButton}>
+                <EyeIcon visible={!securePassword} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Sign In Button */}
           <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>Access Control Center</Text>
+            <Text style={styles.buttonText}>Login</Text>
           </TouchableOpacity>
         </View>
 
@@ -236,6 +253,58 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontSize: 15,
     fontWeight: '500',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 14,
+    height: 52,
+    paddingHorizontal: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 15,
+    fontWeight: '500',
+    height: '100%',
+    padding: 0,
+  },
+  eyeButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  eyeOuter: {
+    width: 20,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#64748b',
+    backgroundColor: 'transparent',
+  },
+  eyeInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#64748b',
+    position: 'absolute',
+  },
+  eyeSlash: {
+    width: 24,
+    height: 2,
+    backgroundColor: '#64748b',
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
   },
   button: {
     backgroundColor: '#2563eb',

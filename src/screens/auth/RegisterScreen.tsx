@@ -260,7 +260,7 @@ export const RegisterScreen = () => {
             activeOpacity={0.8}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>Submit Registration</Text>
+            <Text style={styles.buttonText}>Register</Text>
           </TouchableOpacity>
         </View>
 
