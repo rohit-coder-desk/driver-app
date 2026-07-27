@@ -509,6 +509,20 @@ export const HomeScreen = () => {
     }
   };
 
+  const handleReachedPickup = async () => {
+    if (!activeOrder) return;
+    setActionLoading(true);
+    try {
+      await OrderService.updateOrderStatus(activeOrder.id, 'arrived');
+      setActiveOrder((prev) => prev ? { ...prev, status: 'arrived' } : null);
+      Alert.alert('Reached Pickup!', 'You have arrived at the pickup location.');
+    } catch (err: any) {
+      Alert.alert('Status Update Failed', err.toString() || 'Could not update status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleConfirmPickup = async () => {
     if (!activeOrder) return;
     setActionLoading(true);
@@ -528,6 +542,20 @@ export const HomeScreen = () => {
       Alert.alert('Pickup Confirmed!', 'Heading to delivery destination.');
     } catch (err: any) {
       Alert.alert('Status Update Failed', err.toString() || 'Could not update pickup status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReachedDestination = async () => {
+    if (!activeOrder) return;
+    setActionLoading(true);
+    try {
+      await OrderService.updateOrderStatus(activeOrder.id, 'near_destination');
+      setActiveOrder((prev) => prev ? { ...prev, status: 'near_destination' } : null);
+      Alert.alert('Near Destination!', 'You have arrived near the customer delivery location.');
+    } catch (err: any) {
+      Alert.alert('Status Update Failed', err.toString() || 'Could not update status.');
     } finally {
       setActionLoading(false);
     }
@@ -801,7 +829,9 @@ export const HomeScreen = () => {
       {activeOrder ? (
         <ActiveOrderCard
           order={activeOrder}
+          onReachedPickup={handleReachedPickup}
           onConfirmPickup={handleConfirmPickup}
+          onReachedDestination={handleReachedDestination}
           onCompleteDelivery={handleOpenPaymentModal}
           loading={actionLoading}
         />

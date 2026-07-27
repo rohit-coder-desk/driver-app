@@ -16,7 +16,9 @@ import { COLORS } from '../../constants/colors';
 
 interface ActiveOrderCardProps {
   order: OrderData;
+  onReachedPickup?: () => void;
   onConfirmPickup: () => void;
+  onReachedDestination?: () => void;
   onCompleteDelivery: () => void;
   loading?: boolean;
 }
@@ -30,7 +32,9 @@ interface ChatMessage {
 
 export const ActiveOrderCard = ({
   order,
+  onReachedPickup,
   onConfirmPickup,
+  onReachedDestination,
   onCompleteDelivery,
   loading = false,
 }: ActiveOrderCardProps) => {
@@ -45,7 +49,13 @@ export const ActiveOrderCard = ({
     },
   ]);
 
-  const isPickedUp = order.status === 'picked_up' || order.status === 'near_destination';
+  const status = order.status;
+  const isHeadingToPickup = status === 'assigned';
+  const isAtPickup = status === 'arrived';
+  const isDelivering = status === 'picked_up';
+  const isNearDestination = status === 'near_destination';
+
+  const isPickedUp = isDelivering || isNearDestination;
 
   const customerPhone = order.customerPhone || order.dropoff?.contactPhone || order.pickup?.contactPhone;
 
@@ -87,9 +97,10 @@ export const ActiveOrderCard = ({
     }
   };
 
-  const currentStageTitle = isPickedUp
-    ? 'DELIVERING TO CUSTOMER'
-    : 'HEAD TO PICKUP LOCATION';
+  let currentStageTitle = 'HEAD TO PICKUP LOCATION';
+  if (isAtPickup) currentStageTitle = 'AT PICKUP LOCATION';
+  else if (isDelivering) currentStageTitle = 'DELIVERING TO CUSTOMER';
+  else if (isNearDestination) currentStageTitle = 'AT DELIVERY LOCATION';
 
   const activeTargetAddress = isPickedUp
     ? order.dropoff?.address
@@ -154,7 +165,18 @@ export const ActiveOrderCard = ({
       </View>
 
       {/* Primary Action Button based on Order Status */}
-      {!isPickedUp ? (
+      {isHeadingToPickup ? (
+        <TouchableOpacity
+          style={styles.actionBtnPickup}
+          onPress={onReachedPickup || onConfirmPickup}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.actionBtnText}>
+            {loading ? 'Updating...' : "I've Reached Pickup"}
+          </Text>
+        </TouchableOpacity>
+      ) : isAtPickup ? (
         <TouchableOpacity
           style={styles.actionBtnPickup}
           onPress={onConfirmPickup}
@@ -163,6 +185,17 @@ export const ActiveOrderCard = ({
         >
           <Text style={styles.actionBtnText}>
             {loading ? 'Updating...' : 'Confirm Pickup'}
+          </Text>
+        </TouchableOpacity>
+      ) : isDelivering ? (
+        <TouchableOpacity
+          style={styles.actionBtnDelivery}
+          onPress={onReachedDestination || onCompleteDelivery}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.actionBtnText}>
+            {loading ? 'Updating...' : "I'm Near Destination"}
           </Text>
         </TouchableOpacity>
       ) : (
