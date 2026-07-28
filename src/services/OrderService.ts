@@ -128,4 +128,15 @@ export const OrderService = {
       throw error.response?.data?.message || 'Failed to update order status.';
     }
   },
+
+  rateCustomer: async (orderId: number, rating: number, review?: string) => {
+    try {
+      const response = await orderApi.rateCustomer(orderId, rating, review);
+      return response.data;
+    } catch (error: any) {
+      console.warn('Error rating customer:', error);
+      throw error.response?.data?.message || 'Failed to rate customer.';
+    }
+  },
 };
+

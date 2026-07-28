@@ -16,4 +16,9 @@ export const orderApi = {
   updateOrderStatus: (id: number, status: string, paymentMethod?: string) => {
     return apiClient.put(`/api/orders/${id}/status`, { status, paymentMethod });
   },
+  rateCustomer: (id: number, rating: number, review?: string) => {
+    return apiClient.put(`/api/orders/${id}/rate-customer`, { rating, review });
+  },
 };
+
+

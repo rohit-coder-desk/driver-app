@@ -26,6 +26,7 @@ import { OrderService, OrderData, OrderOfferData } from '../../services/OrderSer
 import { RouteService, LatLng } from '../../services/RouteService';
 import { OrderRequestModal } from '../../components/orders/OrderRequestModal';
 import { PaymentConfirmationModal } from '../../components/orders/PaymentConfirmationModal';
+import { CustomerReviewModal } from '../../components/orders/CustomerReviewModal';
 import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
@@ -49,6 +50,9 @@ export const HomeScreen = () => {
   const [incomingOffer, setIncomingOffer] = useState<OrderOfferData | null>(null);
   const [offerModalVisible, setOfferModalVisible] = useState<boolean>(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState<boolean>(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState<boolean>(false);
+  const [completedOrderForReview, setCompletedOrderForReview] = useState<OrderData | null>(null);
+  const [reviewLoading, setReviewLoading] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
 
@@ -115,20 +119,26 @@ export const HomeScreen = () => {
     return () => clearInterval(intervalId);
   }, [isOnline]);
 
-  // Keep isOnline ref updated to avoid stale closure issues in AppState listener
+  // Keep isOnline & activeOrder refs updated to avoid stale closure issues in AppState listener
   const isOnlineRef = useRef(isOnline);
   useEffect(() => {
     isOnlineRef.current = isOnline;
   }, [isOnline]);
 
+  const activeOrderRef = useRef(activeOrder);
+  useEffect(() => {
+    activeOrderRef.current = activeOrder;
+  }, [activeOrder]);
+
   const isTogglingOfflineRef = useRef(false);
 
-  // Automatically update driver status to Offline when app moves to background/inactive
+  // Automatically update driver status to Offline when app moves to background/inactive (unless handling an active delivery)
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       if (
         (nextAppState === 'background' || nextAppState === 'inactive') &&
         isOnlineRef.current &&
+        !activeOrderRef.current &&
         !isTogglingOfflineRef.current
       ) {
         isTogglingOfflineRef.current = true;
@@ -571,13 +581,39 @@ export const HomeScreen = () => {
     try {
       await OrderService.updateOrderStatus(activeOrder.id, 'completed', paymentMethod);
       setPaymentModalVisible(false);
+      setCompletedOrderForReview(activeOrder);
       setActiveOrder(null);
-      Alert.alert('Delivery Completed! 🎉', 'You are back online and waiting for new offers.');
+      setReviewModalVisible(true);
     } catch (err: any) {
       Alert.alert('Delivery Update Failed', err.toString() || 'Could not complete delivery.');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleReviewSubmit = async (rating: number, reviewText: string) => {
+    if (!completedOrderForReview) {
+      setReviewModalVisible(false);
+      Alert.alert('Delivery Completed! 🎉', 'You are back online and waiting for new offers.');
+      return;
+    }
+    setReviewLoading(true);
+    try {
+      await OrderService.rateCustomer(completedOrderForReview.id, rating, reviewText);
+    } catch (err) {
+      console.warn('Failed to submit customer review:', err);
+    } finally {
+      setReviewLoading(false);
+      setReviewModalVisible(false);
+      setCompletedOrderForReview(null);
+      Alert.alert('Delivery Completed! 🎉', 'Thank you for rating the customer. You are back online.');
+    }
+  };
+
+  const handleReviewSkip = () => {
+    setReviewModalVisible(false);
+    setCompletedOrderForReview(null);
+    Alert.alert('Delivery Completed! 🎉', 'You are back online and waiting for new offers.');
   };
 
   // Sync profile details on mount
@@ -892,6 +928,15 @@ export const HomeScreen = () => {
         onConfirm={handleConfirmDeliveryWithPayment}
         onCancel={() => setPaymentModalVisible(false)}
         loading={actionLoading}
+      />
+
+      {/* Customer Review Modal post ride completion */}
+      <CustomerReviewModal
+        visible={reviewModalVisible}
+        customerName={completedOrderForReview?.customerName || completedOrderForReview?.dropoff?.contactName}
+        onSubmit={handleReviewSubmit}
+        onSkip={handleReviewSkip}
+        loading={reviewLoading}
       />
 
       {/* Backdrop for Custom Side Drawer */}
