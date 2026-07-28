@@ -26,12 +26,26 @@ export interface OrderData {
   createdAt?: string;
 }
 
+export interface WorkingTypeVisibilityConfig {
+  showPrice?: boolean;
+  showWallet?: boolean;
+  showEarning?: boolean;
+  showOrderTypeLabel?: boolean;
+  showPaymentInstruction?: boolean;
+  canCancelOrder?: boolean;
+  showOrdersTab?: boolean;
+  showRouteTab?: boolean;
+  showBalanceTab?: boolean;
+  showTransactionsTab?: boolean;
+}
+
 export interface OrderOfferData {
   id: number; // offer id
   orderId: number;
   status: string;
   expiresAt?: string;
   order: OrderData;
+  workingTypeConfig?: WorkingTypeVisibilityConfig;
 }
 
 export const parseLocation = (loc: any): OrderLocation => {

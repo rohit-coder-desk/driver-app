@@ -1,15 +1,7 @@
-import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { COLORS } from '../../constants/colors';
+import { CustomDriverModal } from '../common/CustomDriverModal';
 
 interface CustomerReviewModalProps {
   visible: boolean;
@@ -26,8 +18,15 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
   onSkip,
   loading = false,
 }) => {
-  const [rating, setRating] = useState<number>(5); // default to 5 stars
+  const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>('');
+
+  useEffect(() => {
+    if (visible) {
+      setRating(0);
+      setReview('');
+    }
+  }, [visible]);
 
   const getRatingLabel = (stars: number) => {
     switch (stars) {
@@ -43,19 +42,13 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
         return '⭐ (1/5) - Very Bad';
       case 0:
       default:
-        return '☆ (0/5) - No Rating';
+        return '☆ (0/5) - Select Rating';
     }
   };
 
   const handleStarPress = (starIndex: number) => {
-    // If pressing the current rating, toggle down or set to starIndex
     if (rating === starIndex) {
-      // If clicking 1 star when already 1 star, allow setting to 0
-      if (starIndex === 1) {
-        setRating(0);
-      } else {
-        setRating(starIndex);
-      }
+      setRating(0);
     } else {
       setRating(starIndex);
     }
@@ -66,215 +59,117 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
   };
 
   return (
-    <Modal
-      transparent
+    <CustomDriverModal
       visible={visible}
-      animationType="fade"
-      onRequestClose={onSkip}
+      type="delivered"
+      title="Delivery Completed! 🎉"
+      message={`Rate your experience with ${customerName || 'the customer'}`}
+      primaryButtonText="Submit Review"
+      onPrimaryAction={handleSubmit}
+      secondaryButtonText="Skip"
+      onSecondaryAction={onSkip}
+      loading={loading}
     >
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.headerIcon}>🎉</Text>
-          <Text style={styles.title}>Ride Completed!</Text>
-          <Text style={styles.subtitle}>
-            Rate your experience with {customerName || 'the customer'}
-          </Text>
-
-          {/* Star Rating Section */}
-          <View style={styles.starsContainer}>
-            {[1, 2, 3, 4, 5].map((star) => (
+      <View style={styles.contentContainer}>
+        {/* Star Rating Row */}
+        <View style={styles.starsContainer}>
+          {[1, 2, 3, 4, 5].map((star) => {
+            const isFilled = star <= rating;
+            return (
               <TouchableOpacity
                 key={star}
                 onPress={() => handleStarPress(star)}
                 activeOpacity={0.7}
                 style={styles.starTouchable}
               >
-                <Text style={styles.starIcon}>
-                  {star <= rating ? '★' : '☆'}
+                <Text style={[styles.starIcon, isFilled ? styles.starFilled : styles.starHollow]}>
+                  {isFilled ? '★' : '☆'}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            );
+          })}
+        </View>
 
-          <View style={styles.ratingLabelBadge}>
-            <Text style={styles.ratingLabelText}>{getRatingLabel(rating)}</Text>
-          </View>
+        <View style={[styles.ratingLabelBadge, rating === 0 && styles.zeroRatingBadge]}>
+          <Text style={[styles.ratingLabelText, rating === 0 && styles.zeroRatingText]}>
+            {getRatingLabel(rating)}
+          </Text>
+        </View>
 
-          {/* Zero Rating Option */}
-          {rating !== 0 && (
-            <TouchableOpacity
-              onPress={() => setRating(0)}
-              style={styles.zeroRatingBtn}
-            >
-              {/* <Text style={styles.zeroRatingText}>Set to 0 Starsss</Text> */}
-            </TouchableOpacity>
-          )}
-
-          {/* Optional Feedback Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Write feedback for customer (optional)..."
-              placeholderTextColor="#94a3b8"
-              multiline
-              numberOfLines={3}
-              value={review}
-              onChangeText={setReview}
-              maxLength={250}
-            />
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={styles.skipBtn}
-              onPress={onSkip}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.skipBtnText}>Skip</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitBtnText}>Submit Review</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+        {/* Feedback Input */}
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Write feedback for customer (optional)..."
+            placeholderTextColor="#94A3B8"
+            multiline
+            numberOfLines={3}
+            value={review}
+            onChangeText={setReview}
+            maxLength={250}
+          />
         </View>
       </View>
-    </Modal>
+    </CustomDriverModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
+  contentContainer: {
     width: '100%',
-    maxWidth: 380,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerIcon: {
-    fontSize: 40,
     marginBottom: 8,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
   },
   starsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   starTouchable: {
     padding: 6,
   },
   starIcon: {
     fontSize: 38,
-    color: '#f59e0b',
+  },
+  starFilled: {
+    color: '#F59E0B',
+  },
+  starHollow: {
+    color: '#CBD5E1',
   },
   ratingLabelBadge: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#FEF3C7',
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginBottom: 14,
+  },
+  zeroRatingBadge: {
+    backgroundColor: '#F1F5F9',
   },
   ratingLabelText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#b45309',
-  },
-  zeroRatingBtn: {
-    marginBottom: 16,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#B45309',
   },
   zeroRatingText: {
-    fontSize: 12,
-    color: '#94a3b8',
-    textDecorationLine: 'underline',
+    color: '#64748B',
   },
   inputContainer: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   textInput: {
     width: '100%',
-    minHeight: 80,
-    backgroundColor: '#f8fafc',
+    minHeight: 70,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E2E8F0',
     borderRadius: 12,
     padding: 12,
-    fontSize: 14,
-    color: '#0f172a',
+    fontSize: 13.5,
+    color: '#0F172A',
     textAlignVertical: 'top',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  skipBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  skipBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  submitBtn: {
-    flex: 2,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary || '#2563eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#ffffff',
   },
 });

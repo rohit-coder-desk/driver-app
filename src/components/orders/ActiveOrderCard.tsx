@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,12 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { OrderData } from '../../services/OrderService';
 import { COLORS } from '../../constants/colors';
+import { CustomDriverModal } from '../common/CustomDriverModal';
+import apiClient from '../../api/axios';
 
 interface ActiveOrderCardProps {
   order: OrderData;
@@ -40,14 +43,43 @@ export const ActiveOrderCard = ({
 }: ActiveOrderCardProps) => {
   const [chatVisible, setChatVisible] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      sender: 'customer',
-      text: 'Hello, please call me when you reach the pickup location.',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [alertModalConfig, setAlertModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
+
+  useEffect(() => {
+    if (chatVisible && order?.id) {
+      fetchOrderChatMessages();
+    }
+  }, [chatVisible, order?.id]);
+
+  const fetchOrderChatMessages = async () => {
+    try {
+      setChatLoading(true);
+      const res = await apiClient.get(`/api/chat/orders/${order.id}/messages`);
+      if (Array.isArray(res.data)) {
+        const formatted = res.data.map((m: any) => ({
+          id: m.id.toString(),
+          sender: (m.senderType === 'driver' ? 'driver' : 'customer') as 'driver' | 'customer',
+          text: m.text,
+          time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }));
+        setMessages(formatted);
+      }
+    } catch (e) {
+      console.error('Error loading order chat:', e);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const status = order.status;
   const isHeadingToPickup = status === 'assigned';
@@ -63,21 +95,15 @@ export const ActiveOrderCard = ({
     if (customerPhone) {
       Linking.openURL(`tel:${customerPhone}`);
     } else {
-      Alert.alert('Customer Phone', 'Phone number not provided for this order.');
+      setAlertModalConfig({
+        visible: true,
+        title: 'Customer Phone',
+        message: 'Phone number not provided for this order.',
+      });
     }
   };
 
-  const handleOpenSMS = (textToSend?: string) => {
-    const msg = textToSend || inputText;
-    if (customerPhone) {
-      const url = Platform.OS === 'ios' ? `sms:${customerPhone}&body=${encodeURIComponent(msg)}` : `sms:${customerPhone}?body=${encodeURIComponent(msg)}`;
-      Linking.openURL(url);
-    } else {
-      Alert.alert('Customer Phone', 'Phone number not provided.');
-    }
-  };
-
-  const handleSendMessage = (customText?: string) => {
+  const handleSendMessage = async (customText?: string) => {
     const text = (customText || inputText).trim();
     if (!text) return;
 
@@ -91,9 +117,13 @@ export const ActiveOrderCard = ({
     setMessages((prev) => [...prev, newMsg]);
     if (!customText) setInputText('');
 
-    // Also offer direct SMS send
-    if (customerPhone) {
-      handleOpenSMS(text);
+    try {
+      await apiClient.post(`/api/chat/orders/${order.id}/messages`, {
+        text,
+        senderType: 'driver',
+      });
+    } catch (e) {
+      console.error('Error persisting chat message:', e);
     }
   };
 
@@ -287,9 +317,19 @@ export const ActiveOrderCard = ({
           </View>
         </View>
       </Modal>
+
+      <CustomDriverModal
+        visible={alertModalConfig.visible}
+        type="info"
+        title={alertModalConfig.title}
+        message={alertModalConfig.message}
+        primaryButtonText="OK"
+        onPrimaryAction={() => setAlertModalConfig((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

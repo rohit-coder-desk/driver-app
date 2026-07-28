@@ -32,6 +32,7 @@ import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
 import { HomeIcon, ProfileIcon, EditIcon, EarningsIcon, LogoutIcon } from '../../components/common/Icons';
+import { CustomDriverModal, DriverModalType } from '../../components/common/CustomDriverModal';
 import { API_BASE_URL } from '../../config/env';
 
 const { width, height } = Dimensions.get('window');
@@ -55,6 +56,41 @@ export const HomeScreen = () => {
   const [reviewLoading, setReviewLoading] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
+
+  // Workflow Dialog Modal State
+  const [driverModalConfig, setDriverModalConfig] = useState<{
+    visible: boolean;
+    type: DriverModalType;
+    title: string;
+    message: string;
+    primaryButtonText?: string;
+    onPrimaryAction?: () => void;
+  }>({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
+
+  const showDriverModal = (
+    type: DriverModalType,
+    title: string,
+    message: string,
+    primaryButtonText = 'OK',
+    onPrimaryAction?: () => void
+  ) => {
+    setDriverModalConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      primaryButtonText,
+      onPrimaryAction: () => {
+        setDriverModalConfig((prev) => ({ ...prev, visible: false }));
+        if (onPrimaryAction) onPrimaryAction();
+      },
+    });
+  };
 
   // Default map center: Sector 83, Mohali, Punjab, India (WorldTech Square)
   const MOHALI_COORDS = {
@@ -496,9 +532,9 @@ export const HomeScreen = () => {
           longitudeDelta: 0.012,
         }, 1000);
       }
-      Alert.alert('Order Accepted!', 'Proceeding to pickup location.');
+      showDriverModal('order_accepted', 'Order Accepted!', 'Proceeding to pickup location.', "Let's Go");
     } catch (err: any) {
-      Alert.alert('Accept Failed', err.toString() || 'Offer is no longer available.');
+      showDriverModal('error', 'Accept Failed', err.toString() || 'Offer is no longer available.');
       setOfferModalVisible(false);
       setIncomingOffer(null);
     } finally {
@@ -515,6 +551,8 @@ export const HomeScreen = () => {
     } finally {
       setOfferModalVisible(false);
       setIncomingOffer(null);
+      setReviewModalVisible(false);
+      setCompletedOrderForReview(null);
       setActionLoading(false);
     }
   };
@@ -525,9 +563,9 @@ export const HomeScreen = () => {
     try {
       await OrderService.updateOrderStatus(activeOrder.id, 'arrived');
       setActiveOrder((prev) => prev ? { ...prev, status: 'arrived' } : null);
-      Alert.alert('Reached Pickup!', 'You have arrived at the pickup location.');
+      showDriverModal('arrived_pickup', 'Reached Pickup!', 'You have arrived at the pickup location.', 'Got It');
     } catch (err: any) {
-      Alert.alert('Status Update Failed', err.toString() || 'Could not update status.');
+      showDriverModal('error', 'Status Update Failed', err.toString() || 'Could not update status.');
     } finally {
       setActionLoading(false);
     }
@@ -549,9 +587,9 @@ export const HomeScreen = () => {
           longitudeDelta: 0.012,
         }, 1000);
       }
-      Alert.alert('Pickup Confirmed!', 'Heading to delivery destination.');
+      showDriverModal('picked_up', 'Pickup Confirmed!', 'Heading to delivery destination.', 'Start Delivery');
     } catch (err: any) {
-      Alert.alert('Status Update Failed', err.toString() || 'Could not update pickup status.');
+      showDriverModal('error', 'Status Update Failed', err.toString() || 'Could not update pickup status.');
     } finally {
       setActionLoading(false);
     }
@@ -563,9 +601,9 @@ export const HomeScreen = () => {
     try {
       await OrderService.updateOrderStatus(activeOrder.id, 'near_destination');
       setActiveOrder((prev) => prev ? { ...prev, status: 'near_destination' } : null);
-      Alert.alert('Near Destination!', 'You have arrived near the customer delivery location.');
+      showDriverModal('near_destination', 'Near Destination!', 'You have arrived near the customer delivery location.', 'Understood');
     } catch (err: any) {
-      Alert.alert('Status Update Failed', err.toString() || 'Could not update status.');
+      showDriverModal('error', 'Status Update Failed', err.toString() || 'Could not update status.');
     } finally {
       setActionLoading(false);
     }
@@ -585,7 +623,7 @@ export const HomeScreen = () => {
       setActiveOrder(null);
       setReviewModalVisible(true);
     } catch (err: any) {
-      Alert.alert('Delivery Update Failed', err.toString() || 'Could not complete delivery.');
+      showDriverModal('error', 'Delivery Update Failed', err.toString() || 'Could not complete delivery.');
     } finally {
       setActionLoading(false);
     }
@@ -594,7 +632,7 @@ export const HomeScreen = () => {
   const handleReviewSubmit = async (rating: number, reviewText: string) => {
     if (!completedOrderForReview) {
       setReviewModalVisible(false);
-      Alert.alert('Delivery Completed! 🎉', 'You are back online and waiting for new offers.');
+      showDriverModal('delivered', 'Delivery Completed! 🎉', 'You are back online and waiting for new offers.', 'Awesome');
       return;
     }
     setReviewLoading(true);
@@ -606,14 +644,14 @@ export const HomeScreen = () => {
       setReviewLoading(false);
       setReviewModalVisible(false);
       setCompletedOrderForReview(null);
-      Alert.alert('Delivery Completed! 🎉', 'Thank you for rating the customer. You are back online.');
+      showDriverModal('delivered', 'Delivery Completed! 🎉', 'Thank you for rating the customer. You are back online.', 'Done');
     }
   };
 
   const handleReviewSkip = () => {
     setReviewModalVisible(false);
     setCompletedOrderForReview(null);
-    Alert.alert('Delivery Completed! 🎉', 'You are back online and waiting for new offers.');
+    showDriverModal('delivered', 'Delivery Completed! 🎉', 'You are back online and waiting for new offers.', 'Awesome');
   };
 
   // Sync profile details on mount
@@ -646,7 +684,7 @@ export const HomeScreen = () => {
         const currentAuthStatus = updatedProfile?.authorizationStatus || driver.authorizationStatus;
 
         if (currentAuthStatus !== 'approved') {
-          Alert.alert('Verification Required', 'Your documents must be approved by our team before you can go online.');
+          showDriverModal('warning', 'Verification Required', 'Your documents must be approved by our team before you can go online.', 'Understood');
           setIsOnline(false);
           return;
         }
@@ -685,7 +723,7 @@ export const HomeScreen = () => {
         }
       }
     } catch (err: any) {
-      Alert.alert('Status Change Failed', err.toString() || 'Something went wrong.');
+      showDriverModal('error', 'Status Change Failed', err.toString() || 'Something went wrong.');
       setIsOnline(!value);
     } finally {
       setLoading(false);
@@ -932,12 +970,23 @@ export const HomeScreen = () => {
 
       {/* Customer Review Modal post ride completion */}
       <CustomerReviewModal
-        visible={reviewModalVisible}
+        visible={reviewModalVisible && Boolean(completedOrderForReview)}
         customerName={completedOrderForReview?.customerName || completedOrderForReview?.dropoff?.contactName}
         onSubmit={handleReviewSubmit}
         onSkip={handleReviewSkip}
         loading={reviewLoading}
       />
+
+      {/* Driver Order Workflow Custom Dialog Modal */}
+      <CustomDriverModal
+        visible={driverModalConfig.visible}
+        type={driverModalConfig.type}
+        title={driverModalConfig.title}
+        message={driverModalConfig.message}
+        primaryButtonText={driverModalConfig.primaryButtonText || 'OK'}
+        onPrimaryAction={driverModalConfig.onPrimaryAction}
+      />
+
 
       {/* Backdrop for Custom Side Drawer */}
       {shouldRenderDrawer && (
