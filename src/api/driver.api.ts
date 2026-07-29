@@ -25,4 +25,7 @@ export const driverApi = {
     // Queries the operation settings endpoint for active vehicle configurations
     return apiClient.get('/api/vehicle-types');
   },
+  getWorkingTypeConfig: () => {
+    return apiClient.get('/api/drivers/me/working-type-config');
+  },
 };

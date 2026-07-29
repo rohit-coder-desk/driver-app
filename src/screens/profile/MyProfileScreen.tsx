@@ -14,9 +14,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
+import { API_BASE_URL } from '../../config/env';
 
 export const MyProfileScreen = () => {
-  const { driver, API_BASE_URL } = useAuth();
+  const { driver } = useAuth();
   const navigation = useNavigation<any>();
 
   const getFullUrl = (filePath?: string) => {
@@ -193,28 +194,28 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    gap: 16,
+    gap: 20,
   },
   profileCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 18,
+    padding: 20,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowRadius: 14,
+    elevation: 6,
   },
   avatarContainer: {
     width: 84,
     height: 84,
     borderRadius: 42,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: COLORS.primary,
-    marginBottom: 12,
+    marginBottom: 14,
     overflow: 'hidden',
   },
   avatarImage: {
@@ -290,8 +291,8 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -330,14 +331,14 @@ const styles = StyleSheet.create({
   editProfileBtn: {
     backgroundColor: COLORS.primary,
     height: 52,
-    borderRadius: 16,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
     elevation: 6,
   },
   editProfileBtnText: {

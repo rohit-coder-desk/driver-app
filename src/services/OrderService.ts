@@ -109,6 +109,25 @@ export const OrderService = {
     }
   },
 
+  getDriverOrders: async (driverId: number): Promise<OrderData[]> => {
+    try {
+      const response = await orderApi.getOrders();
+      const rawOrders = response.data?.orders || response.data || [];
+      const driverOrders = Array.isArray(rawOrders)
+        ? rawOrders.filter((order: any) => Number(order.driverId) === Number(driverId))
+        : [];
+
+      return driverOrders.map((order: any) => ({
+        ...order,
+        pickup: parseLocation(order.pickup),
+        dropoff: parseLocation(order.dropoff),
+      }));
+    } catch (error: any) {
+      console.warn('Error getting driver orders:', error);
+      return [];
+    }
+  },
+
   getActiveOrderForDriver: async (driverId: number): Promise<OrderData | null> => {
     try {
       const response = await orderApi.getOrders();

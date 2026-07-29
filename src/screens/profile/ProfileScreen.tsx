@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -18,12 +18,55 @@ import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { COLORS } from '../../constants/colors';
 import { Loader } from '../../components/common/Loader';
+import { ROUTES } from '../../constants/routes';
 
 interface SelectedFile {
   uri: string;
   type: string;
   fileName: string;
 }
+
+interface UploadCardProps {
+  label: string;
+  fileText: string;
+  onPress: () => void;
+}
+
+interface InputFieldProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+}
+
+const UploadCard = memo(({ label, fileText, onPress }: UploadCardProps) => (
+  <View style={styles.uploadCard}>
+    <Text style={styles.documentLabel}>{label}</Text>
+    <View style={styles.uploadRow}>
+      <TouchableOpacity style={styles.uploadBtn} onPress={onPress} activeOpacity={0.7}>
+        <Text style={styles.uploadBtnText}>Upload Image</Text>
+      </TouchableOpacity>
+      <Text style={styles.fileNameText} numberOfLines={1}>
+        {fileText}
+      </Text>
+    </View>
+  </View>
+));
+
+const InputField = memo(({ label, value, onChangeText, placeholder }: InputFieldProps) => (
+  <View style={styles.inputContainer}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <TextInput
+      style={styles.textInput}
+      placeholder={placeholder}
+      placeholderTextColor="#94a3b8"
+      value={value}
+      onChangeText={onChangeText}
+      returnKeyType="next"
+      blurOnSubmit={false}
+    />
+  </View>
+));
 
 export const ProfileScreen = () => {
   const { driver, refreshProfile } = useAuth();
@@ -60,7 +103,7 @@ export const ProfileScreen = () => {
     }
   }, [driver]);
 
-  const selectImage = (field: string) => {
+  const selectImage = useCallback((field: string) => {
     launchImageLibrary(
       {
         mediaType: 'photo',
@@ -90,9 +133,9 @@ export const ProfileScreen = () => {
         }
       }
     );
-  };
+  }, []);
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     const hasTextChanges =
       vehicleBrand !== (driver?.vehicleBrand || '') ||
       vehicleModel !== (driver?.vehicleModel || '') ||
@@ -111,7 +154,6 @@ export const ProfileScreen = () => {
 
     const formData = new FormData();
 
-    // Append newly chosen files
     if (avatar) formData.append('avatarPhoto', { uri: avatar.uri, type: avatar.type, name: avatar.fileName } as any);
     if (aadhaarFront) formData.append('identityCardPhoto', { uri: aadhaarFront.uri, type: aadhaarFront.type, name: aadhaarFront.fileName } as any);
     if (aadhaarBack) formData.append('identityCardBackPhoto', { uri: aadhaarBack.uri, type: aadhaarBack.type, name: aadhaarBack.fileName } as any);
@@ -120,7 +162,6 @@ export const ProfileScreen = () => {
     if (rc) formData.append('rcPhoto', { uri: rc.uri, type: rc.type, name: rc.fileName } as any);
     if (insurance) formData.append('insurancePhoto', { uri: insurance.uri, type: insurance.type, name: insurance.fileName } as any);
 
-    // Append text inputs
     formData.append('vehicleBrand', vehicleBrand);
     formData.append('vehicleModel', vehicleModel);
     formData.append('vehiclePlate', vehiclePlate);
@@ -140,13 +181,98 @@ export const ProfileScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [avatar, aadhaarBack, aadhaarFront, driver, drivingLicenceExpiry, drivingLicenceNumber, insurance, licenceBack, licenceFront, navigation, refreshProfile, rc, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
 
-  const getFileText = (selected: SelectedFile | null, serverPath: string | undefined | null) => {
+  const getFileText = useCallback((selected: SelectedFile | null, serverPath: string | undefined | null) => {
     if (selected) return selected.fileName;
     if (serverPath) return 'Already Uploaded';
     return 'No file chosen';
-  };
+  }, []);
+
+  const uploadItems = useMemo(
+    () => [
+      {
+        key: 'avatarPhoto',
+        label: 'Selfie / Profile Photo',
+        fileText: getFileText(avatar, driver?.avatarPhoto),
+      },
+      {
+        key: 'identityCardPhoto',
+        label: 'Aadhaar Front',
+        fileText: getFileText(aadhaarFront, driver?.identityCardPhoto),
+      },
+      {
+        key: 'identityCardBackPhoto',
+        label: 'Aadhaar Back',
+        fileText: getFileText(aadhaarBack, driver?.identityCardBackPhoto),
+      },
+      {
+        key: 'drivingLicencePhoto',
+        label: 'License Front',
+        fileText: getFileText(licenceFront, driver?.drivingLicencePhoto),
+      },
+      {
+        key: 'drivingLicenceBackPhoto',
+        label: 'License Back',
+        fileText: getFileText(licenceBack, driver?.drivingLicenceBackPhoto),
+      },
+      {
+        key: 'rcPhoto',
+        label: 'RC Document',
+        fileText: getFileText(rc, driver?.rcPhoto),
+      },
+      {
+        key: 'insurancePhoto',
+        label: 'Vehicle Insurance',
+        fileText: getFileText(insurance, driver?.insurancePhoto),
+      },
+    ], [avatar, aadhaarBack, aadhaarFront, getFileText, insurance, licenceBack, licenceFront, rc, driver]);
+
+  const inputFields = useMemo(
+    () => [
+      {
+        key: 'vehicleBrand',
+        label: 'Vehicle Brand',
+        placeholder: 'e.g. Toyota',
+        value: vehicleBrand,
+        onChangeText: setVehicleBrand,
+      },
+      {
+        key: 'vehicleModel',
+        label: 'Vehicle Model',
+        placeholder: 'e.g. Camry',
+        value: vehicleModel,
+        onChangeText: setVehicleModel,
+      },
+      {
+        key: 'vehiclePlate',
+        label: 'Vehicle Plate',
+        placeholder: 'ABC-1234',
+        value: vehiclePlate,
+        onChangeText: setVehiclePlate,
+      },
+      {
+        key: 'vehicleColor',
+        label: 'Vehicle Color',
+        placeholder: 'e.g. White',
+        value: vehicleColor,
+        onChangeText: setVehicleColor,
+      },
+      {
+        key: 'drivingLicenceNumber',
+        label: 'Driving Licence Number',
+        placeholder: 'e.g. DL-123456789',
+        value: drivingLicenceNumber,
+        onChangeText: setDrivingLicenceNumber,
+      },
+      {
+        key: 'drivingLicenceExpiry',
+        label: 'Driving Licence Expiry',
+        placeholder: 'YYYY-MM-DD',
+        value: drivingLicenceExpiry,
+        onChangeText: setDrivingLicenceExpiry,
+      },
+    ], [drivingLicenceExpiry, drivingLicenceNumber, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -174,178 +300,51 @@ export const ProfileScreen = () => {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+        style={styles.keyboardAvoiding}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          scrollEventThrottle={16}
+          nestedScrollEnabled={false}
+        >
           <Text style={styles.sectionHeader}>Documents & Photos</Text>
 
-          {/* 1. Selfie / Profile Photo */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>Selfie / Profile Photo</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('avatarPhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(avatar, driver?.avatarPhoto)}
-              </Text>
-            </View>
-          </View>
-
-          {/* 2. Aadhaar Front */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>Aadhaar Front</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('identityCardPhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(aadhaarFront, driver?.identityCardPhoto)}
-              </Text>
-            </View>
-          </View>
-
-          {/* 3. Aadhaar Back */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>Aadhaar Back</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('identityCardBackPhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(aadhaarBack, driver?.identityCardBackPhoto)}
-              </Text>
-            </View>
-          </View>
-
-          {/* 4. License Front */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>License Front</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('drivingLicencePhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(licenceFront, driver?.drivingLicencePhoto)}
-              </Text>
-            </View>
-          </View>
-
-          {/* 5. License Back */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>License Back</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('drivingLicenceBackPhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(licenceBack, driver?.drivingLicenceBackPhoto)}
-              </Text>
-            </View>
-          </View>
-
-          {/* 6. RC Document */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>RC Document</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('rcPhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(rc, driver?.rcPhoto)}
-              </Text>
-            </View>
-          </View>
-
-          {/* 7. Vehicle Insurance */}
-          <View style={styles.uploadCard}>
-            <Text style={styles.documentLabel}>Vehicle Insurance</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => selectImage('insurancePhoto')}>
-                <Text style={styles.uploadBtnText}>Upload Image</Text>
-              </TouchableOpacity>
-              <Text style={styles.fileNameText} numberOfLines={1}>
-                {getFileText(insurance, driver?.insurancePhoto)}
-              </Text>
-            </View>
-          </View>
+          {uploadItems.map((item) => (
+            <UploadCard
+              key={item.key}
+              label={item.label}
+              fileText={item.fileText}
+              onPress={() => selectImage(item.key)}
+            />
+          ))}
 
           <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Vehicle Details</Text>
 
-          {/* Vehicle Brand */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Vehicle Brand</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Toyota"
-              placeholderTextColor="#94a3b8"
-              value={vehicleBrand}
-              onChangeText={setVehicleBrand}
+          {inputFields.slice(0, 4).map((field) => (
+            <InputField
+              key={field.key}
+              label={field.label}
+              placeholder={field.placeholder}
+              value={field.value}
+              onChangeText={field.onChangeText}
             />
-          </View>
-
-          {/* Vehicle Model */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Vehicle Model</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Camry"
-              placeholderTextColor="#94a3b8"
-              value={vehicleModel}
-              onChangeText={setVehicleModel}
-            />
-          </View>
-
-          {/* Vehicle Plate */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Vehicle Plate</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="ABC-1234"
-              placeholderTextColor="#94a3b8"
-              value={vehiclePlate}
-              onChangeText={setVehiclePlate}
-            />
-          </View>
-
-          {/* Vehicle Color */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Vehicle Color</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. White"
-              placeholderTextColor="#94a3b8"
-              value={vehicleColor}
-              onChangeText={setVehicleColor}
-            />
-          </View>
+          ))}
 
           <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Licence Details</Text>
 
-          {/* Driving Licence Number */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Driving Licence Number</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. DL-123456789"
-              placeholderTextColor="#94a3b8"
-              value={drivingLicenceNumber}
-              onChangeText={setDrivingLicenceNumber}
+          {inputFields.slice(4).map((field) => (
+            <InputField
+              key={field.key}
+              label={field.label}
+              placeholder={field.placeholder}
+              value={field.value}
+              onChangeText={field.onChangeText}
             />
-          </View>
-
-          {/* Driving Licence Expiry */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Driving Licence Expiry</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#94a3b8"
-              value={drivingLicenceExpiry}
-              onChangeText={setDrivingLicenceExpiry}
-            />
-          </View>
+          ))}
 
           {/* Submit Button */}
           <TouchableOpacity
@@ -353,7 +352,7 @@ export const ProfileScreen = () => {
             onPress={handleUpload}
             activeOpacity={0.8}
           >
-            <Text style={styles.submitBtnText}>Finish Registration</Text>
+            <Text style={styles.submitBtnText}>Save Changes</Text>
           </TouchableOpacity>
 
         </ScrollView>
@@ -366,6 +365,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  keyboardAvoiding: {
+    flex: 1,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,

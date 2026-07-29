@@ -1,10 +1,36 @@
-export const COLORS = {
-  background: '#f8fafc',       // Crisp Light Slate
-  card: '#ffffff',             // Pure White Card
-  textPrimary: '#0f172a',      // Dark Slate text
-  textSecondary: '#64748b',    // Slate-600 description text
-  textMuted: '#94a3b8',        // Slate-400 muted text
-  primary: '#2563eb',          // Consistent Primary Blue
+export interface AppColors {
+  background: string;
+  surface: string;
+  surfaceSoft: string;
+  card: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  primary: string;
+  primaryLight: string;
+  primaryBorder: string;
+  accent: string;
+  border: string;
+  borderSolid: string;
+  error: string;
+  errorLight: string;
+  errorBorder: string;
+  success: string;
+  successLight: string;
+  warning: string;
+  warningLight: string;
+  shadow: string;
+}
+
+export const COLORS: AppColors = {
+  background: '#eff5ff',       // Soft blue background
+  surface: '#ffffff',          // Pure white surface
+  surfaceSoft: '#f8fafc',      // Light surface tint
+  card: '#ffffff',             // Pure white card
+  textPrimary: '#0f172a',      // Dark slate text
+  textSecondary: '#475569',    // Slate-600 secondary text
+  textMuted: '#64748b',        // Slate-500 muted text
+  primary: '#2563eb',          // Bold blue primary
   primaryLight: '#eff6ff',     // Light blue background tint
   primaryBorder: '#bfdbfe',    // Soft blue border
   accent: '#2563eb',           // Primary Accent

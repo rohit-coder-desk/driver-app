@@ -23,31 +23,30 @@ export const Loader = ({ visible, message = 'Please wait...' }: LoaderProps) => 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.75)', // Glassmorphic dark overlay
+    backgroundColor: 'rgba(15, 23, 42, 0.24)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   card: {
-    padding: 24,
+    padding: 22,
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(209, 213, 219, 0.65)',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-    minWidth: 140,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 10,
+    minWidth: 150,
   },
   message: {
     marginTop: 14,
     color: COLORS.textPrimary,
     fontSize: 13,
-    fontWeight: 'bold',
-    letterSpacing: 0.7,
-    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.35,
   },
 });
 export default Loader;

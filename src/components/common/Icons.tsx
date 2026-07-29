@@ -27,16 +27,43 @@ export const EditIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) 
   </View>
 );
 
+export const OrdersIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+  <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}> 
+    <View style={{ width: size * 0.8, height: size * 0.16, backgroundColor: color, borderRadius: 3, marginBottom: size * 0.12 }} />
+    <View style={{ width: size * 0.6, height: size * 0.16, backgroundColor: color, borderRadius: 3, marginBottom: size * 0.12 }} />
+    <View style={{ width: size * 0.4, height: size * 0.16, backgroundColor: color, borderRadius: 3 }} />
+  </View>
+);
+
+export const DocumentsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+  <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}> 
+    <View style={{ width: size * 0.7, height: size * 0.85, borderWidth: 2, borderColor: color, borderRadius: 4, padding: 2 }}>
+      <View style={{ width: size * 0.45, height: size * 0.14, backgroundColor: color, borderRadius: 2, marginBottom: 4 }} />
+      <View style={{ width: size * 0.6, height: size * 0.14, backgroundColor: color, borderRadius: 2, marginBottom: 4 }} />
+      <View style={{ width: size * 0.35, height: size * 0.14, backgroundColor: color, borderRadius: 2 }} />
+    </View>
+  </View>
+);
+
+export const SupportIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+  <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}> 
+    <View style={{ width: size * 0.7, height: size * 0.55, borderRadius: size * 0.15, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ width: size * 0.45, height: size * 0.14, backgroundColor: color, borderRadius: 2 }} />
+    </View>
+    <View style={{ position: 'absolute', bottom: size * 0.15, width: size * 0.22, height: size * 0.1, backgroundColor: color, borderRadius: 2 }} />
+  </View>
+);
+
 export const EarningsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
-  <View style={[styles.iconBase, { width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }]}>
+  <View style={[styles.iconBase, { width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }]}> 
     <Text style={{ color, fontSize: size * 0.55, fontWeight: '900', marginTop: -1 }}>₹</Text>
   </View>
 );
 
 export const LogoutIcon: React.FC<IconProps> = ({ color = '#ef4444', size = 20 }) => (
-  <View style={[styles.iconBase, { width: size, height: size, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
+  <View style={[styles.iconBase, { width: size, height: size, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}> 
     <View style={{ width: size * 0.55, height: size * 0.7, borderRadius: 3, borderWidth: 2, borderColor: color, borderRightWidth: 0 }} />
-    <View style={{ width: size * 0.4, height: 2, backgroundColor: color, marginLeft: -size * 0.15 }} />
+    <View style={{ width: size * 0.35, height: 2, backgroundColor: color, marginLeft: -size * 0.15 }} />
     <View style={{ width: 0, height: 0, borderTopWidth: 4, borderBottomWidth: 4, borderLeftWidth: 5, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: color, marginLeft: -1 }} />
   </View>
 );

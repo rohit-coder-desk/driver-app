@@ -53,4 +53,13 @@ export const DriverService = {
       ];
     }
   },
+  getWorkingTypeConfig: async () => {
+    try {
+      const response = await driverApi.getWorkingTypeConfig();
+      return response.data?.workingTypeConfig || null;
+    } catch (error: any) {
+      console.warn('Failed to fetch working type config:', error);
+      return null;
+    }
+  },
 };

@@ -8,9 +8,11 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
+import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 
 export const EarningsScreen = () => {
@@ -18,8 +20,8 @@ export const EarningsScreen = () => {
   const navigation = useNavigation<any>();
 
   const balance = driver?.balance || 0;
-  const blockedBalance = driver?.blockedBalance || 0;
-  const minimumBalance = driver?.minimumBalance || 0;
+  const blockedBalance = (driver as any)?.blockedBalance || 0;
+  const minimumBalance = (driver as any)?.minimumBalance || 0;
 
   const handleRequestPayout = () => {
     Alert.alert(
@@ -137,7 +139,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -163,16 +165,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    gap: 16,
+    gap: 20,
   },
   balanceCard: {
     backgroundColor: COLORS.primary,
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 18,
+    padding: 20,
     alignItems: 'center',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -239,16 +241,16 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
   },
   summaryCardLabel: {
     fontSize: 10,
@@ -268,9 +270,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   activityCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 18,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -290,7 +292,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: COLORS.successLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -298,7 +300,7 @@ const styles = StyleSheet.create({
   txIconText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#10b981',
+    color: COLORS.success,
   },
   txDetails: {
     flex: 1,

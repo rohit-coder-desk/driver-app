@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
@@ -31,7 +32,7 @@ import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
-import { HomeIcon, ProfileIcon, EditIcon, EarningsIcon, LogoutIcon } from '../../components/common/Icons';
+import { HomeIcon, ProfileIcon, EditIcon, OrdersIcon, DocumentsIcon, SupportIcon, EarningsIcon, LogoutIcon } from '../../components/common/Icons';
 import { CustomDriverModal, DriverModalType } from '../../components/common/CustomDriverModal';
 import { API_BASE_URL } from '../../config/env';
 
@@ -444,7 +445,20 @@ export const HomeScreen = () => {
     RouteService.getRoadRoute(origin, destination)
       .then((coords) => {
         if (isMounted && coords && coords.length > 0) {
-          setRouteCoordinates(coords);
+          // Sanitize coordinates: ensure numeric and within valid lat/lng ranges
+          const validCoords = coords
+            .map((c) => ({ latitude: Number(c.latitude), longitude: Number(c.longitude) }))
+            .filter((c) =>
+              Number.isFinite(c.latitude) && Number.isFinite(c.longitude) &&
+              c.latitude >= -90 && c.latitude <= 90 && c.longitude >= -180 && c.longitude <= 180
+            );
+
+          if (validCoords.length > 1) {
+            setRouteCoordinates(validCoords);
+          } else {
+            // Fallback to the two endpoints if routing failed or returned invalid points
+            setRouteCoordinates([origin, destination]);
+          }
         }
       })
       .catch((err) => {
@@ -735,9 +749,7 @@ export const HomeScreen = () => {
     return `${API_BASE_URL}${path}`;
   };
 
-  const navigationRef = useRef<any>(null);
-  const navigation = require('@react-navigation/native').useNavigation();
-  navigationRef.current = navigation;
+  const navigation = useNavigation<any>();
 
   // Render document upload missing notice if authorizationStatus is not approved
   const isProfileIncomplete =
@@ -756,6 +768,18 @@ export const HomeScreen = () => {
           style={StyleSheet.absoluteFill}
           region={region}
           showsUserLocation={true}
+          // Register user location change handler to avoid "Unsupported top level event type" errors
+          onUserLocationChange={(evt) => {
+            try {
+              const coord = evt?.nativeEvent?.coordinate;
+              if (coord && coord.latitude && coord.longitude) {
+                setLocation({ latitude: coord.latitude, longitude: coord.longitude });
+              }
+            } catch (e) {
+              // swallow errors to avoid breaking the map
+              console.warn('onUserLocationChange handler error:', e);
+            }
+          }}
           showsMyLocationButton={false}
         >
           {(location || MOHALI_COORDS) && (
@@ -1001,7 +1025,14 @@ export const HomeScreen = () => {
           <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
             <View style={styles.drawerMainContent}>
               {/* Drawer Header */}
-              <View style={styles.drawerHeader}>
+              <TouchableOpacity
+                style={styles.drawerHeader}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setDrawerOpen(false);
+                  navigation.navigate(ROUTES.MY_PROFILE);
+                }}
+              >
                 <View style={styles.avatarBorder}>
                   {driver?.avatarPhoto ? (
                     <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.drawerAvatar} />
@@ -1015,17 +1046,22 @@ export const HomeScreen = () => {
                   <Text style={styles.drawerNameText} numberOfLines={1}>
                     {driver?.name || 'Driver'}
                   </Text>
-                  <Text style={styles.drawerPhoneText} numberOfLines={1}>
-                    {driver?.phone || driver?.username || 'Driver Portal'}
+                  <Text style={styles.drawerEmailText} numberOfLines={1}>
+                    {driver?.phone || driver?.email || driver?.username || 'Driver Portal'}
                   </Text>
-                  <View style={styles.drawerStatusBadge}>
-                    <View style={[styles.drawerStatusDot, { backgroundColor: isOnline ? '#10b981' : '#64748b' }]} />
+                  <View style={[styles.drawerStatusBadge, isOnline ? styles.drawerStatusOnline : styles.drawerStatusOffline]}>
+                    <View
+                      style={[
+                        styles.drawerStatusDot,
+                        { backgroundColor: isOnline ? COLORS.success : COLORS.textMuted },
+                      ]}
+                    />
                     <Text style={styles.drawerStatusText}>
                       {isOnline ? 'ONLINE' : 'OFFLINE'}
                     </Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Drawer Links */}
               <ScrollView
@@ -1034,14 +1070,14 @@ export const HomeScreen = () => {
                 showsVerticalScrollIndicator={false}
               >
                 <TouchableOpacity
-                  style={[styles.drawerItem, styles.activeDrawerItem]}
+                  style={styles.drawerItem}
                   onPress={() => setDrawerOpen(false)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
                   <View style={[styles.drawerItemIconBox, styles.activeDrawerItemIconBox]}>
-                    <HomeIcon color={COLORS.primary} size={18} />
+                    <HomeIcon color={COLORS.textMuted} size={20} />
                   </View>
-                  <Text style={[styles.drawerItemText, styles.activeDrawerItemText]}>Home</Text>
+                  <Text style={styles.drawerItemText}>Home</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
 
@@ -1051,10 +1087,10 @@ export const HomeScreen = () => {
                     setDrawerOpen(false);
                     navigation.navigate(ROUTES.MY_PROFILE);
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
                   <View style={styles.drawerItemIconBox}>
-                    <ProfileIcon color="#64748b" size={18} />
+                    <ProfileIcon color={COLORS.textMuted} size={20} />
                   </View>
                   <Text style={styles.drawerItemText}>My Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
@@ -1066,12 +1102,61 @@ export const HomeScreen = () => {
                     setDrawerOpen(false);
                     navigation.navigate(ROUTES.PROFILE);
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
                   <View style={styles.drawerItemIconBox}>
-                    <EditIcon color="#64748b" size={18} />
+                    <EditIcon color={COLORS.textMuted} size={20} />
                   </View>
                   <Text style={styles.drawerItemText}>Edit Profile</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+
+                <View style={styles.drawerSectionDivider} />
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    navigation.navigate(ROUTES.MY_ORDERS);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.drawerItemIconBox}>
+                    <OrdersIcon color={COLORS.textMuted} size={20} />
+                  </View>
+                  <Text style={styles.drawerItemText}>My Orders</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    navigation.navigate(ROUTES.DOCUMENTS);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.drawerItemIconBox}>
+                    <DocumentsIcon color={COLORS.textMuted} size={20} />
+                  </View>
+                  <Text style={styles.drawerItemText}>Documents</Text>
+                  <Text style={styles.drawerItemChevron}>›</Text>
+                </TouchableOpacity>
+
+                <View style={styles.drawerSectionDivider} />
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    navigation.navigate(ROUTES.HELP_SUPPORT);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.drawerItemIconBox}>
+                    <SupportIcon color={COLORS.textMuted} size={20} />
+                  </View>
+                  <Text style={styles.drawerItemText}>Help & Support</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
 
@@ -1081,10 +1166,10 @@ export const HomeScreen = () => {
                     setDrawerOpen(false);
                     navigation.navigate(ROUTES.EARNINGS);
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
                   <View style={styles.drawerItemIconBox}>
-                    <EarningsIcon color="#64748b" size={18} />
+                    <EarningsIcon color={COLORS.textMuted} size={20} />
                   </View>
                   <Text style={styles.drawerItemText}>Earnings</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
@@ -1472,21 +1557,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   drawerHeader: {
-    backgroundColor: '#0f172a',
+    backgroundColor: COLORS.surface,
     paddingTop: Platform.OS === 'ios' ? 56 : Math.max(StatusBar.currentHeight || 0, 24) + 16,
     paddingBottom: 24,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomRightRadius: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   avatarBorder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2.5,
-    borderColor: '#2563eb',
-    backgroundColor: '#1e293b',
+    width: 66,
+    height: 66,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+    backgroundColor: COLORS.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1496,121 +1582,146 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   avatarInitialsText: {
-    color: '#ffffff',
+    color: COLORS.primary,
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   drawerHeaderDetails: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 16,
   },
   drawerNameText: {
-    color: '#ffffff',
+    color: COLORS.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontWeight: '800',
+    letterSpacing: 0.15,
   },
-  drawerPhoneText: {
-    color: '#94a3b8',
+  drawerEmailText: {
+    color: COLORS.textSecondary,
     fontSize: 13,
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 4,
   },
   drawerStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 999,
     alignSelf: 'flex-start',
-    marginTop: 6,
+    marginTop: 12,
+  },
+  drawerStatusOnline: {
+    backgroundColor: '#ecfdf5',
+  },
+  drawerStatusOffline: {
+    backgroundColor: '#f1f5f9',
   },
   drawerStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
   drawerStatusText: {
-    color: '#e2e8f0',
-    fontSize: 10,
+    color: COLORS.textPrimary,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   drawerMenu: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   drawerMenuContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 6,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   drawerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    marginBottom: 6,
   },
   activeDrawerItem: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    backgroundColor: COLORS.surfaceSoft,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  drawerItemIndicator: {
+    width: 4,
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+    marginRight: 16,
   },
   drawerItemIconBox: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: COLORS.surfaceSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   activeDrawerItemIconBox: {
-    backgroundColor: '#dbeafe',
-  },
-  drawerItemEmoji: {
-    fontSize: 18,
+    backgroundColor: COLORS.primaryLight,
   },
   drawerItemText: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
-    color: '#334155',
-    marginLeft: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginLeft: 10,
   },
   activeDrawerItemText: {
-    color: '#2563eb',
-    fontWeight: '700',
+    color: COLORS.primary,
   },
   drawerItemChevron: {
-    fontSize: 20,
-    fontWeight: '400',
-    color: '#94a3b8',
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  drawerSectionDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 8,
+    marginHorizontal: 6,
   },
   drawerFooter: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: Platform.OS === 'ios' ? 36 : 20,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    borderTopColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   logoutBtn: {
-    backgroundColor: 'transparent',
-    height: 48,
+    backgroundColor: COLORS.errorLight,
+    height: 54,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-  logoutBtnEmoji: {
-    fontSize: 18,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    gap: 10,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   logoutBtnText: {
-    color: '#ef4444',
+    color: COLORS.error,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
