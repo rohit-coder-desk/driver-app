@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -27,25 +28,12 @@ const EyeIcon = ({ visible }: { visible: boolean }) => {
   );
 };
 
-interface CountryCode {
-  code: string;
-  flag: string;
-  name: string;
-}
-
-const COUNTRY_CODES: CountryCode[] = [
-  { code: '+91', flag: '🇮🇳', name: 'India (+91)' },
-  { code: '+1', flag: '🇺🇸', name: 'USA/Canada (+1)' },
-  { code: '+44', flag: '🇬🇧', name: 'UK (+44)' },
-  { code: '+971', flag: '🇦🇪', name: 'UAE (+971)' },
-  { code: '+61', flag: '🇦🇺', name: 'Australia (+61)' },
-  { code: '+65', flag: '🇸🇬', name: 'Singapore (+65)' },
-];
+import { ALL_COUNTRY_CODES, CountryCode } from '../../constants/countryCodes';
 
 export const RegisterScreen = () => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
+  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(ALL_COUNTRY_CODES[0]);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -286,26 +274,32 @@ export const RegisterScreen = () => {
           activeOpacity={1}
           onPress={() => setCountryModalVisible(false)}
         >
-          <View style={styles.countryModalCard}>
-            <Text style={styles.countryModalTitle}>Select Country Code</Text>
-            {COUNTRY_CODES.map((item) => (
-              <TouchableOpacity
-                key={item.code}
-                style={[
-                  styles.countryItem,
-                  selectedCountry.code === item.code && styles.selectedCountryItem,
-                ]}
-                onPress={() => {
-                  setSelectedCountry(item);
-                  setCountryModalVisible(false);
-                }}
-              >
-                <Text style={styles.countryFlag}>{item.flag}</Text>
-                <Text style={styles.countryName}>{item.name}</Text>
-                {selectedCountry.code === item.code && <Text style={styles.checkIcon}>✓</Text>}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableWithoutFeedback>
+            <View style={styles.countryModalCard}>
+              <Text style={styles.countryModalTitle}>Select Country Code</Text>
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={true}>
+                {ALL_COUNTRY_CODES.map((item, index) => (
+                  <TouchableOpacity
+                    key={`${item.code}-${item.country}-${index}`}
+                    style={[
+                      styles.countryItem,
+                      selectedCountry.country === item.country && selectedCountry.code === item.code && styles.selectedCountryItem,
+                    ]}
+                    onPress={() => {
+                      setSelectedCountry(item);
+                      setCountryModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.countryFlag}>{item.flag}</Text>
+                    <Text style={styles.countryName}>{item.name}</Text>
+                    {selectedCountry.country === item.country && selectedCountry.code === item.code && (
+                      <Text style={styles.checkIcon}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
         </TouchableOpacity>
       </Modal>
     </KeyboardAvoidingView>

@@ -98,11 +98,14 @@ export const OrderRequestModal = ({
 const styles = StyleSheet.create({
   body: {
     width: '100%',
-    marginVertical: 12,
+    marginTop: 8,
+    marginBottom: 12,
+    paddingTop: 10,
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    paddingTop: 4,
   },
   greenCircle: {
     width: 22,

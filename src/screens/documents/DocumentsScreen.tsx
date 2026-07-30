@@ -18,6 +18,7 @@ import { DriverService } from '../../services/DriverService';
 import { COLORS } from '../../constants/colors';
 import { API_BASE_URL } from '../../config/env';
 import { Loader } from '../../components/common/Loader';
+import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 
 interface SelectedFile {
   uri: string;
@@ -49,6 +50,42 @@ export const DocumentsScreen = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  // Custom Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    type: 'info' | 'error' | 'warning' | 'accept' | 'delivered';
+    title: string;
+    message: string;
+    onPrimaryAction?: () => void;
+  }>({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
+
+  const showModal = useCallback((
+    type: 'info' | 'error' | 'warning' | 'accept' | 'delivered',
+    title: string,
+    message: string,
+    onPrimaryAction?: () => void
+  ) => {
+    setModalConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onPrimaryAction,
+    });
+  }, []);
+
+  const hideModal = useCallback(() => {
+    if (modalConfig.onPrimaryAction) {
+      modalConfig.onPrimaryAction();
+    }
+    setModalConfig((prev) => ({ ...prev, visible: false, onPrimaryAction: undefined }));
+  }, [modalConfig]);
+
   const getFullUrl = (filePath?: string | null) => {
     if (!filePath) return '';
     if (filePath.startsWith('http')) return filePath;
@@ -74,12 +111,12 @@ export const DocumentsScreen = () => {
       (response) => {
         if (response.didCancel) return;
         if (response.errorMessage) {
-          Alert.alert('Upload error', response.errorMessage);
+          showModal('error', 'Upload error', response.errorMessage);
           return;
         }
         const asset = response.assets?.[0];
         if (!asset || !asset.uri) {
-          Alert.alert('Upload error', 'Unable to select the document image.');
+          showModal('error', 'Upload error', 'Unable to select the document image.');
           return;
         }
         const newFile: SelectedFile = {
@@ -93,11 +130,11 @@ export const DocumentsScreen = () => {
         }));
       }
     );
-  }, []);
+  }, [showModal]);
 
   const handleUploadDocuments = useCallback(async () => {
     if (!hasNewUploads) {
-      Alert.alert('No files selected', 'Please select at least one document to upload.');
+      showModal('info', 'No files selected', 'Please select at least one document to upload.');
       return;
     }
 
@@ -112,7 +149,7 @@ export const DocumentsScreen = () => {
     try {
       await DriverService.uploadDocuments(formData);
       await refreshProfile();
-      Alert.alert('Success', 'Documents uploaded successfully. Admin will review them shortly.');
+      showModal('accept', 'Success', 'Documents uploaded successfully. Admin will review them shortly.');
       setSelectedFiles((prev) => {
         const reset: Record<string, SelectedFile | null> = {};
         Object.keys(prev).forEach((key) => {
@@ -121,11 +158,11 @@ export const DocumentsScreen = () => {
         return reset;
       });
     } catch (error: any) {
-      Alert.alert('Upload failed', error?.toString() || 'Could not upload documents.');
+      showModal('error', 'Upload failed', error?.toString() || 'Could not upload documents.');
     } finally {
       setLoading(false);
     }
-  }, [hasNewUploads, refreshProfile, selectedFiles]);
+  }, [hasNewUploads, refreshProfile, selectedFiles, showModal]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -177,6 +214,15 @@ export const DocumentsScreen = () => {
           <Text style={styles.submitButtonText}>Submit Documents</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <CustomDriverModal
+        visible={modalConfig.visible}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        primaryButtonText="OK"
+        onPrimaryAction={hideModal}
+      />
     </SafeAreaView>
   );
 };

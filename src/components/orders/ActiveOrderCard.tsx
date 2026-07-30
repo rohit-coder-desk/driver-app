@@ -150,47 +150,78 @@ export const ActiveOrderCard = ({
 
   return (
     <View style={styles.container}>
-      {/* Stage Badge & Communication Actions */}
+      {/* Top Header: Stage Status Badge */}
       <View style={styles.topRow}>
         <View style={[styles.stageBadge, isPickedUp ? styles.deliveryBadge : styles.pickupBadge]}>
+          <View style={[styles.stageDot, isPickedUp ? styles.deliveryDot : styles.pickupDot]} />
           <Text style={[styles.stageText, isPickedUp ? styles.deliveryText : styles.pickupText]}>
             {currentStageTitle}
           </Text>
         </View>
-
-        <View style={styles.communicationButtons}>
-          <TouchableOpacity
-            style={styles.chatBtn}
-            onPress={() => setChatVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionBtnIcon}>💬</Text>
-            <Text style={styles.actionBtnLabel}>Chat</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.callBtn}
-            onPress={handleCallCustomer}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionBtnIcon}>📞</Text>
-            <Text style={styles.actionBtnLabel}>Call</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* Customer & Address Details */}
+      {/* Timeline & Customer Details Card */}
       <View style={styles.detailsCard}>
+        {/* Customer Header Info */}
         <View style={styles.customerRow}>
-          <Text style={styles.customerName}>{contactName}</Text>
-          {order.code ? <Text style={styles.orderCode}>#{order.code}</Text> : null}
+          <View style={styles.customerInfoLeft}>
+            <Text style={styles.customerName}>{contactName}</Text>
+            {order.code ? <Text style={styles.orderCode}>#{order.code}</Text> : null}
+          </View>
+
+          <View style={styles.communicationButtons}>
+            <TouchableOpacity
+              style={styles.chatBtn}
+              onPress={() => setChatVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnIcon}>💬</Text>
+              <Text style={styles.actionBtnLabel}>Chat</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.callBtn}
+              onPress={handleCallCustomer}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnIcon}>📞</Text>
+              <Text style={styles.actionBtnLabel}>Call</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.addressBox}>
-          <Text style={styles.addressIcon}>{isPickedUp ? '📍' : '🏪'}</Text>
-          <Text style={styles.addressText} numberOfLines={2}>
-            {activeTargetAddress || 'Destination Address'}
-          </Text>
+        {/* Pickup & Delivery Location Timeline */}
+        <View style={styles.timelineContainer}>
+          {/* Pickup Step */}
+          <View style={styles.timelineRow}>
+            <View style={styles.nodeColumn}>
+              <View style={[styles.timelineNode, !isPickedUp && styles.activeNode]}>
+                <Text style={styles.nodeIcon}>🏪</Text>
+              </View>
+              <View style={styles.timelineLine} />
+            </View>
+            <View style={styles.addressColumn}>
+              <Text style={styles.addressLabel}>PICKUP LOCATION</Text>
+              <Text style={styles.addressText} numberOfLines={1}>
+                {order.pickup?.address || 'Pickup Point'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Delivery Step */}
+          <View style={styles.timelineRow}>
+            <View style={styles.nodeColumn}>
+              <View style={[styles.timelineNode, isPickedUp && styles.activeNode]}>
+                <Text style={styles.nodeIcon}>📍</Text>
+              </View>
+            </View>
+            <View style={styles.addressColumn}>
+              <Text style={styles.addressLabel}>DELIVERY LOCATION</Text>
+              <Text style={styles.addressText} numberOfLines={1}>
+                {order.dropoff?.address || 'Delivery Point'}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -334,17 +365,17 @@ export const ActiveOrderCard = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 34 : 20,
-    left: 16,
-    right: 16,
+    bottom: Platform.OS === 'ios' ? 34 : 18,
+    left: 14,
+    right: 14,
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 12,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 10,
     zIndex: 30,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -356,9 +387,23 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   stageBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: 14,
+  },
+  stageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  pickupDot: {
+    backgroundColor: '#2563eb',
+  },
+  deliveryDot: {
+    backgroundColor: '#10b981',
   },
   pickupBadge: {
     backgroundColor: '#eff6ff',
@@ -366,70 +411,94 @@ const styles = StyleSheet.create({
     borderColor: '#bfdbfe',
   },
   deliveryBadge: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#ecfdf5',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#a7f3d0',
   },
   stageText: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   pickupText: {
     color: '#2563eb',
   },
   deliveryText: {
-    color: '#16a34a',
+    color: '#059669',
+  },
+  metricsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  earningsChip: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  earningsChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
   },
   communicationButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   chatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#a7f3d0',
   },
   callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f1f5f9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#cbd5e1',
   },
   actionBtnIcon: {
-    fontSize: 12,
-    marginRight: 4,
+    fontSize: 11,
+    marginRight: 3,
   },
   actionBtnLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#334155',
   },
   detailsCard: {
     backgroundColor: '#f8fafc',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
   },
   customerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  customerInfoLeft: {
+    flex: 1,
   },
   customerName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#0f172a',
   },
@@ -437,45 +506,80 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#64748b',
+    marginTop: 1,
   },
-  addressBox: {
+  timelineContainer: {
+    gap: 8,
+  },
+  timelineRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  addressIcon: {
-    fontSize: 16,
+  nodeColumn: {
+    alignItems: 'center',
+    width: 24,
     marginRight: 8,
   },
-  addressText: {
+  timelineNode: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeNode: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1.5,
+    borderColor: '#2563eb',
+  },
+  nodeIcon: {
+    fontSize: 11,
+  },
+  timelineLine: {
+    width: 2,
+    height: 16,
+    backgroundColor: '#cbd5e1',
+    marginVertical: 2,
+  },
+  addressColumn: {
     flex: 1,
-    fontSize: 13,
+  },
+  addressLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 1,
+  },
+  addressText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#334155',
-    lineHeight: 17,
+    color: '#1e293b',
   },
   actionBtnPickup: {
-    height: 50,
+    height: 48,
     backgroundColor: '#2563eb',
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
-    elevation: 8,
+    elevation: 6,
   },
   actionBtnDelivery: {
-    height: 50,
-    backgroundColor: '#22c55e',
-    borderRadius: 14,
+    height: 48,
+    backgroundColor: '#10b981',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#22c55e',
+    shadowColor: '#10b981',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
-    elevation: 8,
+    elevation: 6,
   },
   actionBtnText: {
     color: '#ffffff',

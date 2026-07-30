@@ -16,8 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
-import { COLORS } from '../../constants/colors';
 import { Loader } from '../../components/common/Loader';
+import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 import { ROUTES } from '../../constants/routes';
 
 interface SelectedFile {
@@ -82,6 +82,9 @@ export const ProfileScreen = () => {
   const [insurance, setInsurance] = useState<SelectedFile | null>(null);
 
   // Text Inputs state
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [vehicleBrand, setVehicleBrand] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehiclePlate, setVehiclePlate] = useState('');
@@ -94,6 +97,9 @@ export const ProfileScreen = () => {
   // Sync details from profile on mount/update
   useEffect(() => {
     if (driver) {
+      setName(driver.name || '');
+      setPhone(driver.phone || '');
+      setEmail(driver.email || '');
       setVehicleBrand(driver.vehicleBrand || '');
       setVehicleModel(driver.vehicleModel || '');
       setVehiclePlate(driver.vehiclePlate || '');
@@ -102,6 +108,42 @@ export const ProfileScreen = () => {
       setDrivingLicenceExpiry(driver.drivingLicenceExpiry || '');
     }
   }, [driver]);
+
+  // Custom Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    type: 'info' | 'error' | 'warning' | 'accept' | 'delivered';
+    title: string;
+    message: string;
+    onPrimaryAction?: () => void;
+  }>({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
+
+  const showModal = useCallback((
+    type: 'info' | 'error' | 'warning' | 'accept' | 'delivered',
+    title: string,
+    message: string,
+    onPrimaryAction?: () => void
+  ) => {
+    setModalConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      onPrimaryAction,
+    });
+  }, []);
+
+  const hideModal = useCallback(() => {
+    if (modalConfig.onPrimaryAction) {
+      modalConfig.onPrimaryAction();
+    }
+    setModalConfig((prev) => ({ ...prev, visible: false, onPrimaryAction: undefined }));
+  }, [modalConfig]);
 
   const selectImage = useCallback((field: string) => {
     launchImageLibrary(
@@ -112,7 +154,7 @@ export const ProfileScreen = () => {
       (response) => {
         if (response.didCancel) return;
         if (response.errorMessage) {
-          Alert.alert('Error', response.errorMessage);
+          showModal('error', 'Error', response.errorMessage);
           return;
         }
         if (response.assets && response.assets.length > 0) {
@@ -133,10 +175,13 @@ export const ProfileScreen = () => {
         }
       }
     );
-  }, []);
+  }, [showModal]);
 
   const handleUpload = useCallback(async () => {
     const hasTextChanges =
+      name !== (driver?.name || '') ||
+      phone !== (driver?.phone || '') ||
+      email !== (driver?.email || '') ||
       vehicleBrand !== (driver?.vehicleBrand || '') ||
       vehicleModel !== (driver?.vehicleModel || '') ||
       vehiclePlate !== (driver?.vehiclePlate || '') ||
@@ -148,7 +193,7 @@ export const ProfileScreen = () => {
       avatar || aadhaarFront || aadhaarBack || licenceFront || licenceBack || rc || insurance;
 
     if (!hasNewUploads && !hasTextChanges) {
-      Alert.alert('No Changes', 'Please enter vehicle details or select a document to upload.');
+      showModal('info', 'No Changes', 'Please enter profile or vehicle details or select a document to upload.');
       return;
     }
 
@@ -162,6 +207,9 @@ export const ProfileScreen = () => {
     if (rc) formData.append('rcPhoto', { uri: rc.uri, type: rc.type, name: rc.fileName } as any);
     if (insurance) formData.append('insurancePhoto', { uri: insurance.uri, type: insurance.type, name: insurance.fileName } as any);
 
+    formData.append('name', name);
+    formData.append('phone', phone);
+    formData.append('email', email);
     formData.append('vehicleBrand', vehicleBrand);
     formData.append('vehicleModel', vehicleModel);
     formData.append('vehiclePlate', vehiclePlate);
@@ -173,15 +221,19 @@ export const ProfileScreen = () => {
     try {
       await DriverService.uploadDocuments(formData);
       await refreshProfile();
-      Alert.alert('Success', 'Profile documents and details submitted successfully. Waiting for Admin approval.', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+
+      const isDocUpload = !!(avatar || aadhaarFront || aadhaarBack || licenceFront || licenceBack || rc || insurance || drivingLicenceNumber !== (driver?.drivingLicenceNumber || '') || drivingLicenceExpiry !== (driver?.drivingLicenceExpiry || ''));
+      const successMessage = isDocUpload
+        ? 'Profile documents submitted successfully. Waiting for Admin approval.'
+        : 'Profile updated successfully!';
+
+      showModal('accept', 'Success', successMessage, () => navigation.goBack());
     } catch (error: any) {
-      Alert.alert('Submission Failed', error.toString() || 'Could not save profile details.');
+      showModal('error', 'Submission Failed', error.toString() || 'Could not save profile details.');
     } finally {
       setLoading(false);
     }
-  }, [avatar, aadhaarBack, aadhaarFront, driver, drivingLicenceExpiry, drivingLicenceNumber, insurance, licenceBack, licenceFront, navigation, refreshProfile, rc, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
+  }, [avatar, aadhaarBack, aadhaarFront, driver, drivingLicenceExpiry, drivingLicenceNumber, email, insurance, licenceBack, licenceFront, name, navigation, phone, refreshProfile, rc, showModal, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
 
   const getFileText = useCallback((selected: SelectedFile | null, serverPath: string | undefined | null) => {
     if (selected) return selected.fileName;
@@ -311,7 +363,27 @@ export const ProfileScreen = () => {
           scrollEventThrottle={16}
           nestedScrollEnabled={false}
         >
-          <Text style={styles.sectionHeader}>Documents & Photos</Text>
+          <Text style={styles.sectionHeader}>Personal Information</Text>
+          <InputField
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={name}
+            onChangeText={setName}
+          />
+          <InputField
+            label="Phone Number"
+            placeholder="Enter phone number"
+            value={phone}
+            onChangeText={setPhone}
+          />
+          <InputField
+            label="Email Address"
+            placeholder="Enter email address"
+            value={email}
+            onChangeText={setEmail}
+          />
+
+          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Documents & Photos</Text>
 
           {uploadItems.map((item) => (
             <UploadCard
@@ -357,6 +429,15 @@ export const ProfileScreen = () => {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomDriverModal
+        visible={modalConfig.visible}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        primaryButtonText="OK"
+        onPrimaryAction={hideModal}
+      />
     </SafeAreaView>
   );
 };

@@ -443,7 +443,7 @@ export const HomeScreen = () => {
 
     RouteService.getRoadRoute(origin, destination)
       .then((coords) => {
-        if (isMounted && coords && coords.length > 0) {
+        if (isMounted && coords && coords.length > 2) {
           setRouteCoordinates(coords);
         }
       })
@@ -804,18 +804,9 @@ export const HomeScreen = () => {
               ) : null}
 
               {/* Route Polyline connecting Driver to active target along actual roads */}
-              {location && (
+              {location && routeCoordinates.length > 2 && (
                 <Polyline
-                  coordinates={
-                    routeCoordinates.length > 0
-                      ? routeCoordinates
-                      : [
-                        { latitude: location.latitude, longitude: location.longitude },
-                        activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
-                          ? { latitude: Number(activeOrder.dropoff.lat), longitude: Number(activeOrder.dropoff.lng) }
-                          : { latitude: Number(activeOrder.pickup.lat), longitude: Number(activeOrder.pickup.lng) },
-                      ]
-                  }
+                  coordinates={routeCoordinates}
                   strokeColor="#2563eb"
                   strokeWidth={5}
                   lineCap="round"
@@ -1000,8 +991,15 @@ export const HomeScreen = () => {
           {/* Custom Side Drawer Sidebar */}
           <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
             <View style={styles.drawerMainContent}>
-              {/* Drawer Header */}
-              <View style={styles.drawerHeader}>
+              {/* Drawer Header - Tapping opens My Profile */}
+              <TouchableOpacity
+                style={styles.drawerHeader}
+                onPress={() => {
+                  setDrawerOpen(false);
+                  navigation.navigate(ROUTES.MY_PROFILE);
+                }}
+                activeOpacity={0.85}
+              >
                 <View style={styles.avatarBorder}>
                   {driver?.avatarPhoto ? (
                     <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.drawerAvatar} />
@@ -1012,20 +1010,22 @@ export const HomeScreen = () => {
                   )}
                 </View>
                 <View style={styles.drawerHeaderDetails}>
-                  <Text style={styles.drawerNameText} numberOfLines={1}>
-                    {driver?.name || 'Driver'}
-                  </Text>
+                  <View style={styles.drawerNameRow}>
+                    <Text style={styles.drawerNameText} numberOfLines={1}>
+                      {driver?.name || 'Driver'}
+                    </Text>
+                  </View>
                   <Text style={styles.drawerPhoneText} numberOfLines={1}>
                     {driver?.phone || driver?.username || 'Driver Portal'}
                   </Text>
                   <View style={styles.drawerStatusBadge}>
                     <View style={[styles.drawerStatusDot, { backgroundColor: isOnline ? '#10b981' : '#64748b' }]} />
                     <Text style={styles.drawerStatusText}>
-                      {isOnline ? 'ONLINE' : 'OFFLINE'}
+                      {isOnline ? 'ONLINE • READY' : 'OFFLINE'}
                     </Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Drawer Links */}
               <ScrollView
@@ -1553,11 +1553,27 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 14,
   },
+  drawerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   drawerNameText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  verifiedBadge: {
+    color: '#3b82f6',
+    fontSize: 12,
+    fontWeight: 'bold',
+    backgroundColor: '#eff6ff',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   drawerPhoneText: {
     color: '#94a3b8',
@@ -1586,6 +1602,35 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  drawerStatsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#f8fafc',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  drawerStatBox: {
+    alignItems: 'center',
+  },
+  drawerStatValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  drawerStatLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  drawerStatDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#cbd5e1',
   },
   drawerMenu: {
     flex: 1,
