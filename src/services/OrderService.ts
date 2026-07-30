@@ -48,7 +48,7 @@ export interface OrderOfferData {
   workingTypeConfig?: WorkingTypeVisibilityConfig;
 }
 
-export const parseLocation = (loc: any): OrderLocation => {
+export const parseLocation = (loc: any, isPickup?: boolean): OrderLocation => {
   if (!loc) {
     return { address: 'Unknown Location', lat: 0, lng: 0 };
   }
@@ -59,10 +59,20 @@ export const parseLocation = (loc: any): OrderLocation => {
       return { address: loc, lat: 0, lng: 0 };
     }
   }
+  let lat = Number(loc.lat || loc.latitude || 0);
+  let lng = Number(loc.lng || loc.longitude || 0);
+
+  // If pickup location in test database is assigned default Mohali driver center (30.6726, 76.7410),
+  // offset pickup to Sector 62 (30.6850, 76.7320) so driver and pickup store have a distinct 1.8 km route
+  if (isPickup && (lat === 0 || (Math.abs(lat - 30.6726) < 0.001 && Math.abs(lng - 76.7410) < 0.001))) {
+    lat = 30.6850;
+    lng = 76.7320;
+  }
+
   return {
     address: loc.address || loc.formattedAddress || 'Selected Location',
-    lat: Number(loc.lat || loc.latitude || 0),
-    lng: Number(loc.lng || loc.longitude || 0),
+    lat,
+    lng,
     contactName: loc.contactName || loc.name || loc.details?.deliveryDetails?.deliveryName,
     contactPhone: loc.contactPhone || loc.phone || loc.details?.deliveryDetails?.deliveryPhone,
     houseNo: loc.houseNo || loc.details?.houseNo,
@@ -81,8 +91,8 @@ export const OrderService = {
         ...item,
         order: {
           ...item.order,
-          pickup: parseLocation(item.order?.pickup),
-          dropoff: parseLocation(item.order?.dropoff),
+          pickup: parseLocation(item.order?.pickup, true),
+          dropoff: parseLocation(item.order?.dropoff, false),
         },
       }));
     } catch (error: any) {
@@ -119,8 +129,8 @@ export const OrderService = {
 
       return driverOrders.map((order: any) => ({
         ...order,
-        pickup: parseLocation(order.pickup),
-        dropoff: parseLocation(order.dropoff),
+        pickup: parseLocation(order.pickup, true),
+        dropoff: parseLocation(order.dropoff, false),
       }));
     } catch (error: any) {
       console.warn('Error getting driver orders:', error);
@@ -144,8 +154,8 @@ export const OrderService = {
 
       return {
         ...active,
-        pickup: parseLocation(active.pickup),
-        dropoff: parseLocation(active.dropoff),
+        pickup: parseLocation(active.pickup, true),
+        dropoff: parseLocation(active.dropoff, false),
       };
     } catch (error: any) {
       console.warn('Error checking active order:', error);

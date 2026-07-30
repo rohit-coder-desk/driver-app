@@ -182,7 +182,7 @@ export const HomeScreen = () => {
           // Immediately update local state to stop location watching & order polling
           setIsOnline(false);
           await DriverService.updateStatus('offline');
-          await refreshProfile().catch(() => {});
+          await refreshProfile().catch(() => { });
         } catch (error) {
           console.warn('Auto offline on app background failed:', error);
         } finally {
@@ -269,12 +269,17 @@ export const HomeScreen = () => {
 
     const nextLoc = { latitude: finalLat, longitude: finalLng };
     setLocation(nextLoc);
-    setRegion({
-      latitude: finalLat,
-      longitude: finalLng,
-      latitudeDelta: 0.015,
-      longitudeDelta: 0.0121,
-    });
+
+    // Only update region (re-center map on driver) if there is NO active order.
+    // When an active order is being navigated, fitToCoordinates owns the camera.
+    if (!activeOrderRef.current) {
+      setRegion({
+        latitude: finalLat,
+        longitude: finalLng,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.0121,
+      });
+    }
 
     try {
       await DriverService.updateLocation(finalLat, finalLng);
@@ -424,7 +429,17 @@ export const HomeScreen = () => {
   useEffect(() => {
     let isMounted = true;
 
+    console.log('[DEBUG-NAV] Route useEffect fired.', {
+      activeOrderPresent: !!activeOrder,
+      activeOrderStatus: activeOrder?.status,
+      activeOrderId: activeOrder?.id,
+      pickup: activeOrder?.pickup,
+      dropoff: activeOrder?.dropoff,
+      location,
+    });
+
     if (!activeOrder || !location) {
+      console.warn('[DEBUG-NAV] Route useEffect: activeOrder or location is missing/null!');
       setRouteCoordinates([]);
       return;
     }
@@ -433,7 +448,16 @@ export const HomeScreen = () => {
     const targetLat = isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat;
     const targetLng = isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng;
 
+    console.log('[DEBUG-NAV] Route target evaluation:', {
+      isPickedUp,
+      targetLat,
+      targetLng,
+      typeTargetLat: typeof targetLat,
+      typeTargetLng: typeof targetLng,
+    });
+
     if (!targetLat || !targetLng) {
+      console.warn('[DEBUG-NAV] Route useEffect: targetLat or targetLng is invalid/falsy!');
       setRouteCoordinates([]);
       return;
     }
@@ -441,14 +465,20 @@ export const HomeScreen = () => {
     const origin: LatLng = { latitude: location.latitude, longitude: location.longitude };
     const destination: LatLng = { latitude: Number(targetLat), longitude: Number(targetLng) };
 
+    console.log('[DEBUG-NAV] Calling RouteService.getRoadRoute with:', { origin, destination });
+
     RouteService.getRoadRoute(origin, destination)
       .then((coords) => {
-        if (isMounted && coords && coords.length > 2) {
+        console.log('[DEBUG-NAV] RouteService returned coords length:', coords ? coords.length : 0);
+        if (isMounted && coords && coords.length >= 2) {
+          console.log('[DEBUG-NAV] Setting routeCoordinates state with length:', coords.length);
           setRouteCoordinates(coords);
+        } else {
+          console.warn('[DEBUG-NAV] Coords condition failed: length < 2');
         }
       })
       .catch((err) => {
-        console.warn('Failed to fetch road route:', err);
+        console.warn('[DEBUG-NAV] Failed to fetch road route:', err);
       });
 
     return () => {
@@ -473,19 +503,36 @@ export const HomeScreen = () => {
       const targetLng = isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng;
 
       if (targetLat && targetLng) {
-        mapRef.current.fitToCoordinates(
-          [
-            { latitude: location.latitude, longitude: location.longitude },
-            { latitude: Number(targetLat), longitude: Number(targetLng) },
-          ],
-          {
-            edgePadding: { top: 140, right: 60, bottom: 280, left: 60 },
-            animated: true,
-          }
-        );
+        const latDiff = Math.abs(location.latitude - Number(targetLat));
+        const lngDiff = Math.abs(location.longitude - Number(targetLng));
+
+        // If driver and target are virtually at the same coordinates (0 to 100 meters),
+        // use animateToRegion with a comfortable default view delta to prevent 0-bounds extreme zoom bug.
+        if (latDiff < 0.001 && lngDiff < 0.001) {
+          mapRef.current.animateToRegion(
+            {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              latitudeDelta: 0.012,
+              longitudeDelta: 0.009,
+            },
+            1000
+          );
+        } else {
+          mapRef.current.fitToCoordinates(
+            [
+              { latitude: location.latitude, longitude: location.longitude },
+              { latitude: Number(targetLat), longitude: Number(targetLng) },
+            ],
+            {
+              edgePadding: { top: 140, right: 60, bottom: 280, left: 60 },
+              animated: true,
+            }
+          );
+        }
       }
     }
-  }, [activeOrder?.status, activeOrder?.id]);
+  }, [activeOrder?.status, activeOrder?.id, location?.latitude, location?.longitude]);
 
   // Offer polling when driver is online and has no active order
   useEffect(() => {
@@ -516,22 +563,21 @@ export const HomeScreen = () => {
 
   const handleAcceptOffer = async (offer: OrderOfferData) => {
     setActionLoading(true);
+    console.log('[DEBUG-NAV] handleAcceptOffer triggered for offer:', offer);
     try {
       await OrderService.acceptOffer(offer.id);
       setOfferModalVisible(false);
       setIncomingOffer(null);
 
       const orderData = offer.order;
+      console.log('[DEBUG-NAV] Accept offer raw orderData:', {
+        id: orderData?.id,
+        pickup: orderData?.pickup,
+        dropoff: orderData?.dropoff,
+      });
+
       setActiveOrder({ ...orderData, status: 'assigned' });
 
-      if (orderData.pickup?.lat && orderData.pickup?.lng && mapRef.current) {
-        mapRef.current.animateToRegion({
-          latitude: orderData.pickup.lat,
-          longitude: orderData.pickup.lng,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.012,
-        }, 1000);
-      }
       showDriverModal('order_accepted', 'Order Accepted!', 'Proceeding to pickup location.', "Let's Go");
     } catch (err: any) {
       showDriverModal('error', 'Accept Failed', err.toString() || 'Offer is no longer available.');
@@ -804,13 +850,23 @@ export const HomeScreen = () => {
               ) : null}
 
               {/* Route Polyline connecting Driver to active target along actual roads */}
-              {location && routeCoordinates.length > 2 && (
+              {location && activeOrder && (
                 <Polyline
-                  coordinates={routeCoordinates}
+                  coordinates={
+                    routeCoordinates.length >= 2
+                      ? routeCoordinates
+                      : [
+                          { latitude: location.latitude, longitude: location.longitude },
+                          activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
+                            ? { latitude: Number(activeOrder.dropoff?.lat || 0), longitude: Number(activeOrder.dropoff?.lng || 0) }
+                            : { latitude: Number(activeOrder.pickup?.lat || 0), longitude: Number(activeOrder.pickup?.lng || 0) },
+                        ]
+                  }
                   strokeColor="#2563eb"
-                  strokeWidth={5}
+                  strokeWidth={6}
                   lineCap="round"
                   lineJoin="round"
+                  zIndex={999}
                 />
               )}
             </>

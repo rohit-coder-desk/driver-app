@@ -14,8 +14,13 @@ export class RouteService {
     origin: LatLng,
     destination: LatLng
   ): Promise<LatLng[]> {
-    if (!origin || !destination) return [];
+    console.log('[DEBUG-NAV] RouteService.getRoadRoute called with:', { origin, destination });
+    if (!origin || !destination) {
+      console.warn('[DEBUG-NAV] RouteService: origin or destination missing!');
+      return [];
+    }
     if (!origin.latitude || !origin.longitude || !destination.latitude || !destination.longitude) {
+      console.warn('[DEBUG-NAV] RouteService: invalid lat/lng numbers!', { origin, destination });
       return [];
     }
 
@@ -26,6 +31,7 @@ export class RouteService {
 
     for (const osrmUrl of endpoints) {
       try {
+        console.log('[DEBUG-NAV] Fetching OSRM from URL:', osrmUrl);
         const response = await axios.get(osrmUrl, { timeout: 8000 });
         if (
           response.data &&
@@ -40,16 +46,20 @@ export class RouteService {
             longitude: lng,
           }));
 
-          if (polylinePoints.length > 2) {
+          console.log('[DEBUG-NAV] OSRM success! Returned polyline points count:', polylinePoints.length);
+          if (polylinePoints.length >= 2) {
             return polylinePoints;
           }
         }
       } catch (error) {
-        console.warn(`OSRM Route mirror (${osrmUrl}) warning:`, error);
+        console.warn(`[DEBUG-NAV] OSRM Route mirror (${osrmUrl}) warning:`, error);
       }
     }
 
-    // Return empty array if road route cannot be fetched so straight line fallbacks are never drawn
-    return [];
+    console.warn('[DEBUG-NAV] OSRM failed/empty. Returning straight-line fallback [origin, destination]');
+    return [
+      { latitude: origin.latitude, longitude: origin.longitude },
+      { latitude: destination.latitude, longitude: destination.longitude },
+    ];
   }
 }
