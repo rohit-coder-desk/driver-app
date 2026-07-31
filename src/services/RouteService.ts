@@ -5,16 +5,59 @@ export interface LatLng {
   longitude: number;
 }
 
+const GOOGLE_MAPS_API_KEY = 'AIzaSyArjBYpH-Hqe0nTcbmN53RIwHvvLyPsaf8';
+
+/**
+ * Decodes an encoded Google Maps Polyline string into an array of LatLng points.
+ */
+function decodePolyline(encoded: string): LatLng[] {
+  const points: LatLng[] = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < len) {
+    let b: number;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push({
+      latitude: lat / 1e5,
+      longitude: lng / 1e5,
+    });
+  }
+
+  return points;
+}
+
 export class RouteService {
   /**
-   * Fetches actual road polyline points connecting origin to destination.
-   * Queries multiple OSRM routing mirrors with automatic failover.
+   * Fetches official road navigation polyline points connecting origin to destination.
+   * Uses Google Directions API as primary provider, with OSRM mirror failover.
    */
   static async getRoadRoute(
     origin: LatLng,
     destination: LatLng
   ): Promise<LatLng[]> {
-    console.log('[DEBUG-NAV] RouteService.getRoadRoute called with:', { origin, destination });
+    console.log('[DEBUG-NAV] RouteService.getRoadRoute called:', { origin, destination });
     if (!origin || !destination) {
       console.warn('[DEBUG-NAV] RouteService: origin or destination missing!');
       return [];
@@ -24,15 +67,42 @@ export class RouteService {
       return [];
     }
 
-    const endpoints = [
-      `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`,
-      `https://routing.openstreetmap.de/routed-car/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`,
+    // 1. Primary Provider: Google Directions API (Official Google Navigation Route)
+    try {
+      const googleUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
+      console.log('[DEBUG-NAV] Requesting official Google Directions API route...');
+      const response = await axios.get(googleUrl, { timeout: 6000 });
+      if (
+        response.data &&
+        response.data.status === 'OK' &&
+        response.data.routes &&
+        response.data.routes.length > 0 &&
+        response.data.routes[0].overview_polyline &&
+        response.data.routes[0].overview_polyline.points
+      ) {
+        const encodedPolyline = response.data.routes[0].overview_polyline.points;
+        const decodedPoints = decodePolyline(encodedPolyline);
+        console.log(`[DEBUG-NAV] ✅ Google Directions success! Extracted ${decodedPoints.length} exact road points.`);
+        if (decodedPoints.length >= 2) {
+          return decodedPoints;
+        }
+      } else {
+        console.warn('[DEBUG-NAV] Google Directions returned non-OK status:', response.data?.status || 'EMPTY');
+      }
+    } catch (googleErr: any) {
+      console.warn('[DEBUG-NAV] Google Directions request failed:', googleErr?.message || googleErr);
+    }
+
+    // 2. Fallback Provider: OSRM Mirrors (Strict Driving Route)
+    const osrmEndpoints = [
+      `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson&continue_straight=true`,
+      `https://routing.openstreetmap.de/routed-car/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson&continue_straight=true`,
     ];
 
-    for (const osrmUrl of endpoints) {
+    for (const osrmUrl of osrmEndpoints) {
       try {
-        console.log('[DEBUG-NAV] Fetching OSRM from URL:', osrmUrl);
-        const response = await axios.get(osrmUrl, { timeout: 8000 });
+        console.log('[DEBUG-NAV] Fetching OSRM fallback from URL:', osrmUrl);
+        const response = await axios.get(osrmUrl, { timeout: 6000 });
         if (
           response.data &&
           response.data.routes &&
@@ -46,7 +116,7 @@ export class RouteService {
             longitude: lng,
           }));
 
-          console.log('[DEBUG-NAV] OSRM success! Returned polyline points count:', polylinePoints.length);
+          console.log('[DEBUG-NAV] OSRM success! Polyline points count:', polylinePoints.length);
           if (polylinePoints.length >= 2) {
             return polylinePoints;
           }
@@ -56,7 +126,8 @@ export class RouteService {
       }
     }
 
-    console.warn('[DEBUG-NAV] OSRM failed/empty. Returning straight-line fallback [origin, destination]');
+    // 3. Fallback 3: Direct Straight Line
+    console.warn('[DEBUG-NAV] Fallback to direct origin-destination line');
     return [
       { latitude: origin.latitude, longitude: origin.longitude },
       { latitude: destination.latitude, longitude: destination.longitude },
