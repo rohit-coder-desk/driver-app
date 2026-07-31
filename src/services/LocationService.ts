@@ -13,6 +13,11 @@ export const LocationService = {
   requestLocationPermission: async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
       try {
+        const fineGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+        const coarseGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION);
+        if (fineGranted || coarseGranted) {
+          return true; // Already granted!
+        }
         const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,

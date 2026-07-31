@@ -17,6 +17,7 @@ import {
   StatusBar,
   AppState,
   AppStateStatus,
+  Linking,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -206,10 +207,51 @@ export const HomeScreen = () => {
     return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
   };
 
+  const hasPromptedLocationSettingsRef = useRef(false);
+
+  const promptEnableLocationServices = () => {
+    if (hasPromptedLocationSettingsRef.current) return;
+    hasPromptedLocationSettingsRef.current = true;
+
+    Alert.alert(
+      'Location / GPS Disabled',
+      'Location services are turned off on your device. Please turn on Location / GPS for live driver tracking.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            setTimeout(() => {
+              hasPromptedLocationSettingsRef.current = false;
+            }, 10000);
+          },
+        },
+        {
+          text: 'Turn On GPS',
+          onPress: () => {
+            hasPromptedLocationSettingsRef.current = false;
+            if (Platform.OS === 'android') {
+              Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS').catch(() => {
+                Linking.openSettings();
+              });
+            } else {
+              Linking.openSettings();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Request Location Permissions & Subscribe to GPS tracking
   const requestLocationPermission = async () => {
     if (Platform.OS === 'android') {
       try {
+        const fineGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+        const coarseGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION);
+        if (fineGranted || coarseGranted) {
+          return true; // Already granted! Do NOT trigger permission popup
+        }
         const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
@@ -302,7 +344,9 @@ export const HomeScreen = () => {
           },
           (error: any) => {
             console.warn('Geolocation initial lock waiting for device GPS fix:', error);
-            // Wait for valid GPS fix from watchPosition stream instead of arbitrary fallback coordinates
+            if (error?.code === 2 || error?.message?.includes('disabled')) {
+              promptEnableLocationServices();
+            }
           },
           { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
@@ -318,7 +362,12 @@ export const HomeScreen = () => {
                 }
               }
             },
-            (error: any) => console.log('Location watch error:', error),
+            (error: any) => {
+              console.log('Location watch error:', error);
+              if (error?.code === 2 || error?.message?.includes('disabled')) {
+                promptEnableLocationServices();
+              }
+            },
             {
               enableHighAccuracy: true,
               distanceFilter: 3, // Real-time smooth updates on 3 meters movement
@@ -339,7 +388,11 @@ export const HomeScreen = () => {
                   syncDriverLocation(pos.coords.latitude, pos.coords.longitude);
                 }
               },
-              (err: any) => { },
+              (err: any) => {
+                if (err?.code === 2 || err?.message?.includes('disabled')) {
+                  promptEnableLocationServices();
+                }
+              },
               { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
             );
           }, 5000);

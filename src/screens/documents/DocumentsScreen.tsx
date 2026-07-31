@@ -10,9 +10,10 @@ import {
   ScrollView,
   Image,
   Alert,
+  PermissionsAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { COLORS } from '../../constants/colors';
@@ -105,32 +106,73 @@ export const DocumentsScreen = () => {
   const hasDocuments = documentItems.some((item) => !!item.uri || !!item.selectedFile);
   const hasNewUploads = Object.values(selectedFiles).some(Boolean);
 
-  const selectDocument = useCallback((key: string) => {
-    launchImageLibrary(
-      { mediaType: 'photo', quality: 0.8 },
-      (response) => {
-        if (response.didCancel) return;
-        if (response.errorMessage) {
-          showModal('error', 'Upload error', response.errorMessage);
-          return;
-        }
-        const asset = response.assets?.[0];
-        if (!asset || !asset.uri) {
-          showModal('error', 'Upload error', 'Unable to select the document image.');
-          return;
-        }
-        const newFile: SelectedFile = {
-          uri: asset.uri,
-          type: asset.type || 'image/jpeg',
-          name: asset.fileName || `${key}.jpg`,
-        };
-        setSelectedFiles((prev) => ({
-          ...prev,
-          [key]: newFile,
-        }));
+  const openDocumentPicker = useCallback((key: string, useCamera: boolean) => {
+    const options = { mediaType: 'photo' as const, quality: 0.8 };
+
+    const handleResponse = (response: any) => {
+      if (response.didCancel) return;
+      if (response.errorMessage) {
+        showModal('error', 'Upload error', response.errorMessage);
+        return;
       }
-    );
+      const asset = response.assets?.[0];
+      if (!asset || !asset.uri) {
+        showModal('error', 'Upload error', 'Unable to select the document image.');
+        return;
+      }
+      const newFile: SelectedFile = {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || `${key}.jpg`,
+      };
+      setSelectedFiles((prev) => ({
+        ...prev,
+        [key]: newFile,
+      }));
+    };
+
+    if (useCamera) {
+      if (Platform.OS === 'android') {
+        PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
+          .then((granted) => {
+            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+              launchCamera(options, handleResponse);
+            } else {
+              showModal('error', 'Camera Permission Denied', 'Camera permission is required to capture photos.');
+            }
+          })
+          .catch((err) => {
+            console.warn('Camera permission error:', err);
+            showModal('error', 'Error', 'Failed to request camera permission.');
+          });
+      } else {
+        launchCamera(options, handleResponse);
+      }
+    } else {
+      launchImageLibrary(options, handleResponse);
+    }
   }, [showModal]);
+
+  const selectDocument = useCallback((key: string) => {
+    Alert.alert(
+      'Select Image Source',
+      'Choose how you want to upload your photo:',
+      [
+        {
+          text: '📷 Take Photo with Camera',
+          onPress: () => openDocumentPicker(key, true),
+        },
+        {
+          text: '🖼️ Choose from Gallery',
+          onPress: () => openDocumentPicker(key, false),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  }, [openDocumentPicker]);
 
   const handleUploadDocuments = useCallback(async () => {
     if (!hasNewUploads) {

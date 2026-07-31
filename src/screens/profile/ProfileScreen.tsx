@@ -11,9 +11,10 @@ import {
   Platform,
   KeyboardAvoidingView,
   StatusBar,
+  PermissionsAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
@@ -145,37 +146,78 @@ export const ProfileScreen = () => {
     setModalConfig((prev) => ({ ...prev, visible: false, onPrimaryAction: undefined }));
   }, [modalConfig]);
 
-  const selectImage = useCallback((field: string) => {
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        quality: 0.8,
-      },
-      (response) => {
-        if (response.didCancel) return;
-        if (response.errorMessage) {
-          showModal('error', 'Error', response.errorMessage);
-          return;
-        }
-        if (response.assets && response.assets.length > 0) {
-          const asset = response.assets[0];
-          const selected = {
-            uri: asset.uri || '',
-            type: asset.type || 'image/jpeg',
-            fileName: asset.fileName || `${field}.jpg`,
-          };
+  const openImagePicker = useCallback((field: string, useCamera: boolean) => {
+    const options = {
+      mediaType: 'photo' as const,
+      quality: 0.8,
+    };
 
-          if (field === 'avatarPhoto') setAvatar(selected);
-          else if (field === 'identityCardPhoto') setAadhaarFront(selected);
-          else if (field === 'identityCardBackPhoto') setAadhaarBack(selected);
-          else if (field === 'drivingLicencePhoto') setLicenceFront(selected);
-          else if (field === 'drivingLicenceBackPhoto') setLicenceBack(selected);
-          else if (field === 'rcPhoto') setRc(selected);
-          else if (field === 'insurancePhoto') setInsurance(selected);
-        }
+    const handleResponse = (response: any) => {
+      if (response.didCancel) return;
+      if (response.errorMessage) {
+        showModal('error', 'Error', response.errorMessage);
+        return;
       }
-    );
+      if (response.assets && response.assets.length > 0) {
+        const asset = response.assets[0];
+        const selected = {
+          uri: asset.uri || '',
+          type: asset.type || 'image/jpeg',
+          fileName: asset.fileName || `${field}.jpg`,
+        };
+
+        if (field === 'avatarPhoto') setAvatar(selected);
+        else if (field === 'identityCardPhoto') setAadhaarFront(selected);
+        else if (field === 'identityCardBackPhoto') setAadhaarBack(selected);
+        else if (field === 'drivingLicencePhoto') setLicenceFront(selected);
+        else if (field === 'drivingLicenceBackPhoto') setLicenceBack(selected);
+        else if (field === 'rcPhoto') setRc(selected);
+        else if (field === 'insurancePhoto') setInsurance(selected);
+      }
+    };
+
+    if (useCamera) {
+      if (Platform.OS === 'android') {
+        PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
+          .then((granted) => {
+            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+              launchCamera(options, handleResponse);
+            } else {
+              showModal('error', 'Camera Permission Denied', 'Camera permission is required to capture photos.');
+            }
+          })
+          .catch((err) => {
+            console.warn('Camera permission error:', err);
+            showModal('error', 'Error', 'Failed to request camera permission.');
+          });
+      } else {
+        launchCamera(options, handleResponse);
+      }
+    } else {
+      launchImageLibrary(options, handleResponse);
+    }
   }, [showModal]);
+
+  const selectImage = useCallback((field: string) => {
+    Alert.alert(
+      'Select Image Source',
+      'Choose how you want to upload your photo:',
+      [
+        {
+          text: '📷 Take Photo',
+          onPress: () => openImagePicker(field, true),
+        },
+        {
+          text: '🖼️ Choose from Gallery',
+          onPress: () => openImagePicker(field, false),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  }, [openImagePicker]);
 
   const handleUpload = useCallback(async () => {
     const hasTextChanges =
