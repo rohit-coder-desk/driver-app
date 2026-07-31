@@ -13,17 +13,14 @@ export const LocationService = {
   requestLocationPermission: async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
       try {
-        const granted = await PermissionsAndroid.request(
+        const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Permission Required',
-            message: 'CDX Last Mile Driver App requires your GPS location to navigate to pickup/delivery and enable live tracking.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        ]);
+        return (
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED ||
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED
         );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
         console.warn('Location permission request error:', err);
         return false;

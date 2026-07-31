@@ -210,50 +210,26 @@ export const HomeScreen = () => {
   const requestLocationPermission = async () => {
     if (Platform.OS === 'android') {
       try {
-        const granted = await PermissionsAndroid.request(
+        const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Permission Required',
-            message: 'CDX Last Mile Driver App needs your location to display on the map and receive delivery offers.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        ]);
+        return (
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED ||
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED
         );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn(err);
+        console.warn('Location permission request error:', err);
         return false;
       }
     }
     return true; // iOS permissions
   };
 
-  // Hydrate initial location from driver profile if present in DB
+  // Wait for live physical device GPS fix to set driver location state
   useEffect(() => {
-    if (driver?.latitude && driver?.longitude) {
-      let lat = Number(driver.latitude);
-      let lng = Number(driver.longitude);
-      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-        // If DB has default Android emulator coordinates, map to Mohali
-        if (Math.abs(lat - 37.42199) < 0.05 && Math.abs(lng - (-122.084)) < 0.05) {
-          lat = MOHALI_COORDS.latitude;
-          lng = MOHALI_COORDS.longitude;
-          syncDriverLocation(lat, lng);
-        }
-        setLocation({ latitude: lat, longitude: lng });
-        setRegion({
-          latitude: lat,
-          longitude: lng,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.0121,
-        });
-        return;
-      }
-    }
-    // Default to Mohali & sync to DB if driver has no location set yet
-    syncDriverLocation(MOHALI_COORDS.latitude, MOHALI_COORDS.longitude);
-  }, [driver]);
+    console.log('[LOCATION-DEBUG] [DRIVER-PROFILE-LOADED]:', { id: driver?.id, dbLat: driver?.latitude, dbLng: driver?.longitude });
+  }, [driver?.id]);
 
   const syncDriverLocation = async (lat: number, lng: number) => {
     if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
@@ -267,19 +243,9 @@ export const HomeScreen = () => {
       finalLng = MOHALI_COORDS.longitude;
     }
 
+    console.log(`[LOCATION-DEBUG] [GPS-SYNC-SUCCESS] Device Lat: ${finalLat}, Lng: ${finalLng}`);
     const nextLoc = { latitude: finalLat, longitude: finalLng };
     setLocation(nextLoc);
-
-    // Only update region (re-center map on driver) if there is NO active order.
-    // When an active order is being navigated, fitToCoordinates owns the camera.
-    if (!activeOrderRef.current) {
-      setRegion({
-        latitude: finalLat,
-        longitude: finalLng,
-        latitudeDelta: 0.015,
-        longitudeDelta: 0.0121,
-      });
-    }
 
     try {
       await DriverService.updateLocation(finalLat, finalLng);
@@ -324,43 +290,40 @@ export const HomeScreen = () => {
       const isLinked = !!Geolocation && typeof Geolocation.getCurrentPosition === 'function';
 
       if (hasPermission && isLinked) {
-        // Immediate GPS acquisition
+        // Immediate GPS acquisition (forces fresh physical device GPS lock)
         Geolocation.getCurrentPosition(
           (position: any) => {
             if (position?.coords) {
               const { latitude, longitude } = position.coords;
-              syncDriverLocation(latitude, longitude);
+              if (latitude && longitude) {
+                syncDriverLocation(latitude, longitude);
+              }
             }
           },
           (error: any) => {
-            console.warn('Geolocation initial lock warning:', error);
-            let dLat = driver?.latitude ? Number(driver.latitude) : MOHALI_COORDS.latitude;
-            let dLng = driver?.longitude ? Number(driver.longitude) : MOHALI_COORDS.longitude;
-            if (isNaN(dLat) || isNaN(dLng) || (Math.abs(dLat - 37.42199) < 0.05 && Math.abs(dLng - (-122.084)) < 0.05)) {
-              dLat = MOHALI_COORDS.latitude;
-              dLng = MOHALI_COORDS.longitude;
-            }
-            setLocation({ latitude: dLat, longitude: dLng });
-            setRegion({ latitude: dLat, longitude: dLng, latitudeDelta: 0.015, longitudeDelta: 0.0121 });
+            console.warn('Geolocation initial lock waiting for device GPS fix:', error);
+            // Wait for valid GPS fix from watchPosition stream instead of arbitrary fallback coordinates
           },
-          { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
         );
 
-        // Continuous high-accuracy GPS watch stream
+        // Continuous high-accuracy GPS watch stream for smooth real-time tracking
         try {
           watchId = Geolocation.watchPosition(
             (position: any) => {
               if (position?.coords) {
                 const { latitude, longitude } = position.coords;
-                syncDriverLocation(latitude, longitude);
+                if (latitude && longitude) {
+                  syncDriverLocation(latitude, longitude);
+                }
               }
             },
             (error: any) => console.log('Location watch error:', error),
             {
               enableHighAccuracy: true,
-              distanceFilter: 5, // Update on 5 meters movement
-              interval: 4000,
-              fastestInterval: 2000
+              distanceFilter: 3, // Real-time smooth updates on 3 meters movement
+              interval: 3000,
+              fastestInterval: 1500
             }
           );
         } catch (err) {
@@ -532,7 +495,7 @@ export const HomeScreen = () => {
         }
       }
     }
-  }, [activeOrder?.status, activeOrder?.id, location?.latitude, location?.longitude]);
+  }, [activeOrder?.status, activeOrder?.id]);
 
   // Offer polling when driver is online and has no active order
   useEffect(() => {
@@ -800,13 +763,20 @@ export const HomeScreen = () => {
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
-          region={region}
+          initialRegion={region}
           showsUserLocation={true}
           showsMyLocationButton={false}
+          onUserLocationChange={(event) => {
+            const coords = event.nativeEvent?.coordinate;
+            if (coords?.latitude && coords?.longitude) {
+              console.log(`[LOCATION-DEBUG] [MAPVIEW-NATIVE-GPS] Lat: ${coords.latitude}, Lng: ${coords.longitude}`);
+              syncDriverLocation(coords.latitude, coords.longitude);
+            }
+          }}
         >
-          {(location || MOHALI_COORDS) && (
+          {location && (
             <Marker
-              coordinate={location || MOHALI_COORDS}
+              coordinate={location}
               title={driver?.name || 'Driver'}
               description="Online - Ready for tasks"
               zIndex={99}
@@ -821,56 +791,75 @@ export const HomeScreen = () => {
           )}
 
           {/* Active Order Pickup & Delivery Markers + Route Polyline */}
-          {activeOrder && (
-            <>
-              {/* Pickup Marker */}
-              {activeOrder.pickup?.lat && activeOrder.pickup?.lng ? (
-                <Marker
-                  coordinate={{ latitude: activeOrder.pickup.lat, longitude: activeOrder.pickup.lng }}
-                  title="Pickup Location"
-                  description={activeOrder.pickup.address}
-                >
-                  <View style={styles.pickupMarkerBadge}>
-                    <Text style={styles.markerBadgeEmoji}>🏪</Text>
-                  </View>
-                </Marker>
-              ) : null}
+          {activeOrder && (() => {
+            const pLat = Number(activeOrder.pickup?.lat || 0);
+            const pLng = Number(activeOrder.pickup?.lng || 0);
+            const dLat = Number(activeOrder.dropoff?.lat || 0);
+            const dLng = Number(activeOrder.dropoff?.lng || 0);
 
-              {/* Delivery Marker */}
-              {activeOrder.dropoff?.lat && activeOrder.dropoff?.lng ? (
-                <Marker
-                  coordinate={{ latitude: activeOrder.dropoff.lat, longitude: activeOrder.dropoff.lng }}
-                  title="Delivery Location"
-                  description={activeOrder.dropoff.address}
-                >
-                  <View style={styles.deliveryMarkerBadge}>
-                    <Text style={styles.markerBadgeEmoji}>🏁</Text>
-                  </View>
-                </Marker>
-              ) : null}
+            console.log(`[STAGE-7] [STORED-IN-ACTIVEORDER-STATE] Order #${activeOrder.id} (${activeOrder.status}) - Pickup: (${activeOrder.pickup?.lat}, ${activeOrder.pickup?.lng}), Dropoff: (${activeOrder.dropoff?.lat}, ${activeOrder.dropoff?.lng})`);
+            console.log(`[STAGE-8] [PASSED-TO-PICKUP-MARKER] coordinate={{ latitude: ${pLat}, longitude: ${pLng} }}`);
+            console.log(`[STAGE-9] [PASSED-TO-DROPOFF-MARKER] coordinate={{ latitude: ${dLat}, longitude: ${dLng} }}`);
 
-              {/* Route Polyline connecting Driver to active target along actual roads */}
-              {location && activeOrder && (
-                <Polyline
-                  coordinates={
-                    routeCoordinates.length >= 2
-                      ? routeCoordinates
-                      : [
-                          { latitude: location.latitude, longitude: location.longitude },
-                          activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination'
-                            ? { latitude: Number(activeOrder.dropoff?.lat || 0), longitude: Number(activeOrder.dropoff?.lng || 0) }
-                            : { latitude: Number(activeOrder.pickup?.lat || 0), longitude: Number(activeOrder.pickup?.lng || 0) },
-                        ]
-                  }
-                  strokeColor="#2563eb"
-                  strokeWidth={6}
-                  lineCap="round"
-                  lineJoin="round"
-                  zIndex={999}
-                />
-              )}
-            </>
-          )}
+            const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+            const targetLat = Number(isPickedUp ? dLat : pLat);
+            const targetLng = Number(isPickedUp ? dLng : pLng);
+            const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
+
+            const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 2)
+              ? routeCoordinates
+              : (targetLat !== 0 && targetLng !== 0)
+                ? [
+                    { latitude: startLoc.latitude, longitude: startLoc.longitude },
+                    { latitude: targetLat, longitude: targetLng }
+                  ]
+                : [];
+
+            return (
+              <>
+                {/* Pickup Marker */}
+                {pLat !== 0 && pLng !== 0 && (
+                  <Marker
+                    coordinate={{ latitude: pLat, longitude: pLng }}
+                    title="Pickup Location"
+                    description={activeOrder.pickup?.address || 'Pickup'}
+                    zIndex={999}
+                  >
+                    <View style={styles.pickupMarkerBadge}>
+                      <Text style={styles.markerBadgeEmoji}>🏪</Text>
+                    </View>
+                  </Marker>
+                )}
+
+                {/* Delivery Marker */}
+                {dLat !== 0 && dLng !== 0 && (
+                  <Marker
+                    coordinate={{ latitude: dLat, longitude: dLng }}
+                    title="Delivery Location"
+                    description={activeOrder.dropoff?.address || 'Delivery'}
+                    zIndex={999}
+                  >
+                    <View style={styles.deliveryMarkerBadge}>
+                      <Text style={styles.markerBadgeEmoji}>🏁</Text>
+                    </View>
+                  </Marker>
+                )}
+
+                {/* Polyline */}
+                {polylinePoints.length >= 2 && (
+                  <Polyline
+                    coordinates={polylinePoints}
+                    strokeColor="#2563eb"
+                    strokeWidth={7}
+                    lineCap="round"
+                    lineJoin="round"
+                    geodesic={true}
+                    zIndex={9999}
+                  />
+                )}
+              </>
+            );
+          })()}
         </MapView>
       ) : (
         /* Offline State: Styled Clean Dashboard Card */
@@ -1836,6 +1825,37 @@ const styles = StyleSheet.create({
   },
   markerBadgeEmoji: {
     fontSize: 18,
+  },
+  debugBannerOverlay: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 115 : 95,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.5)',
+    zIndex: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  debugBannerTitle: {
+    color: '#60a5fa',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  debugBannerText: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: '600',
+    marginVertical: 1,
   },
 });
 export default HomeScreen;

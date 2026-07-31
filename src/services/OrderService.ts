@@ -59,17 +59,32 @@ export const parseLocation = (loc: any, isPickup?: boolean): OrderLocation => {
       return { address: loc, lat: 0, lng: 0 };
     }
   }
-  let lat = Number(loc.lat || loc.latitude || 0);
-  let lng = Number(loc.lng || loc.longitude || 0);
 
-  // If pickup location in test database is assigned default Mohali driver center (30.6726, 76.7410),
-  // offset pickup to Sector 62 (30.6850, 76.7320) so driver and pickup store have a distinct 1.8 km route
-  if (isPickup && (lat === 0 || (Math.abs(lat - 30.6726) < 0.001 && Math.abs(lng - 76.7410) < 0.001))) {
-    lat = 30.6850;
-    lng = 76.7320;
+  const targetObj = loc.location || loc;
+  let rawLat = loc.lat ?? loc.latitude ?? targetObj.lat ?? targetObj.latitude ?? 0;
+  let rawLng = loc.lng ?? loc.longitude ?? targetObj.lng ?? targetObj.longitude ?? 0;
+
+  if ((!rawLat || !rawLng) && loc.coordinates) {
+    if (typeof loc.coordinates === 'object' && !Array.isArray(loc.coordinates)) {
+      rawLat = loc.coordinates.lat ?? loc.coordinates.latitude ?? rawLat;
+      rawLng = loc.coordinates.lng ?? loc.coordinates.longitude ?? rawLng;
+    } else if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+      const first = Number(loc.coordinates[0]);
+      const second = Number(loc.coordinates[1]);
+      if (Math.abs(first) <= 90 && Math.abs(second) <= 180) {
+        rawLat = first;
+        rawLng = second;
+      } else {
+        rawLng = first;
+        rawLat = second;
+      }
+    }
   }
 
-  return {
+  const lat = Number(rawLat) || 0;
+  const lng = Number(rawLng) || 0;
+
+  const result: OrderLocation = {
     address: loc.address || loc.formattedAddress || 'Selected Location',
     lat,
     lng,
@@ -80,6 +95,9 @@ export const parseLocation = (loc: any, isPickup?: boolean): OrderLocation => {
     locality: loc.locality || loc.details?.locality,
     tag: loc.tag || loc.details?.tag,
   };
+
+  console.log(`[STAGE-6] [PARSED-LOCATION] ${isPickup ? 'Pickup' : 'Dropoff'} (${lat}, ${lng}) - Address: '${result.address}'`);
+  return result;
 };
 
 export const OrderService = {
@@ -142,23 +160,43 @@ export const OrderService = {
     try {
       const response = await orderApi.getOrders();
       const rawOrders = response.data?.orders || response.data || [];
-      const activeStatuses = ['assigned', 'arrived', 'picked_up', 'near_destination'];
+      console.log(`[STAGE-5] [DRIVERAPP-RECEIVED-API-RESPONSE] Raw Orders:`, JSON.stringify(Array.isArray(rawOrders) ? rawOrders.map((o: any) => ({ id: o.id, status: o.status, driverId: o.driverId, pickup: o.pickup, dropoff: o.dropoff })) : rawOrders));
       
-      const active = rawOrders.find((o: any) => {
+      const activeStatuses = [
+        'accepted',
+        'assigned',
+        'reached_pickup',
+        'arrived',
+        'picked_up',
+        'on_the_way',
+        'near_destination',
+        'reached_dropoff'
+      ];
+      
+      const active = Array.isArray(rawOrders) ? rawOrders.find((o: any) => {
         const matchesDriver = Number(o.driverId) === Number(driverId);
-        const isActive = activeStatuses.includes(o.status);
+        const isActive = activeStatuses.includes(String(o.status).toLowerCase());
+        if (matchesDriver) {
+          console.log(`[ORDER-DEBUG] Driver Order Found #${o.id} - Status: '${o.status}' (IsActive: ${isActive})`);
+        }
         return matchesDriver && isActive;
-      });
+      }) : null;
 
-      if (!active) return null;
+      if (!active) {
+        console.log(`[ORDER-DEBUG] No active order matching driverId ${driverId} in active statuses.`);
+        return null;
+      }
 
-      return {
+      const parsedOrder = {
         ...active,
         pickup: parseLocation(active.pickup, true),
         dropoff: parseLocation(active.dropoff, false),
       };
+
+      console.log(`[ORDER-DEBUG] [ACTIVE-ORDER-LOADED] #${parsedOrder.id} - Pickup Coords: (${parsedOrder.pickup?.lat}, ${parsedOrder.pickup?.lng}), Dropoff Coords: (${parsedOrder.dropoff?.lat}, ${parsedOrder.dropoff?.lng})`);
+      return parsedOrder;
     } catch (error: any) {
-      console.warn('Error checking active order:', error);
+      console.warn('[ORDER-DEBUG] Error checking active order:', error);
       return null;
     }
   },
