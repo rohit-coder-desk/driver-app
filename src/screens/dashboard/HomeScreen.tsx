@@ -69,6 +69,8 @@ export const HomeScreen = () => {
     message: string;
     primaryButtonText?: string;
     onPrimaryAction?: () => void;
+    secondaryButtonText?: string;
+    onSecondaryAction?: () => void;
   }>({
     visible: false,
     type: 'info',
@@ -81,7 +83,9 @@ export const HomeScreen = () => {
     title: string,
     message: string,
     primaryButtonText = 'OK',
-    onPrimaryAction?: () => void
+    onPrimaryAction?: () => void,
+    secondaryButtonText?: string,
+    onSecondaryAction?: () => void
   ) => {
     setDriverModalConfig({
       visible: true,
@@ -93,6 +97,13 @@ export const HomeScreen = () => {
         setDriverModalConfig((prev) => ({ ...prev, visible: false }));
         if (onPrimaryAction) onPrimaryAction();
       },
+      secondaryButtonText,
+      onSecondaryAction: onSecondaryAction
+        ? () => {
+          setDriverModalConfig((prev) => ({ ...prev, visible: false }));
+          onSecondaryAction();
+        }
+        : undefined,
     });
   };
 
@@ -771,6 +782,17 @@ export const HomeScreen = () => {
   const handleToggleOnline = async (value: boolean) => {
     if (!driver) return;
 
+    if (!value && activeOrder) {
+      showDriverModal(
+        'warning',
+        'Active Delivery in Progress',
+        'You are currently handling an active delivery. Complete the current order before going offline.',
+
+        'Got it'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       if (value) {
@@ -903,9 +925,9 @@ export const HomeScreen = () => {
                   ? routeCoordinates
                   : (targetLat !== 0 && targetLng !== 0)
                     ? [
-                        { latitude: startLoc.latitude, longitude: startLoc.longitude },
-                        { latitude: targetLat, longitude: targetLng }
-                      ]
+                      { latitude: startLoc.latitude, longitude: startLoc.longitude },
+                      { latitude: targetLat, longitude: targetLng }
+                    ]
                     : [];
 
             console.log('[POLYLINE-DEBUG]', {
@@ -1124,6 +1146,8 @@ export const HomeScreen = () => {
         message={driverModalConfig.message}
         primaryButtonText={driverModalConfig.primaryButtonText || 'OK'}
         onPrimaryAction={driverModalConfig.onPrimaryAction}
+        secondaryButtonText={driverModalConfig.secondaryButtonText}
+        onSecondaryAction={driverModalConfig.onSecondaryAction}
       />
 
 
