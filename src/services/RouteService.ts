@@ -48,6 +48,16 @@ function decodePolyline(encoded: string): LatLng[] {
   return points;
 }
 
+const lastSuccessRouteCache = new Map<string, LatLng[]>();
+
+function getCacheKey(origin: LatLng, destination: LatLng): string {
+  const oLat = Number(origin.latitude).toFixed(3);
+  const oLng = Number(origin.longitude).toFixed(3);
+  const dLat = Number(destination.latitude).toFixed(3);
+  const dLng = Number(destination.longitude).toFixed(3);
+  return `${oLat},${oLng}->${dLat},${dLng}`;
+}
+
 export class RouteService {
   /**
    * Fetches official road navigation polyline points connecting origin to destination.
@@ -67,6 +77,15 @@ export class RouteService {
       return [];
     }
 
+    const cacheKey = getCacheKey(origin, destination);
+    if (lastSuccessRouteCache.has(cacheKey)) {
+      const cached = lastSuccessRouteCache.get(cacheKey)!;
+      if (cached && cached.length >= 3) {
+        console.log(`[DEBUG-NAV] ✅ RouteService cache hit! Returning ${cached.length} road points.`);
+        return cached;
+      }
+    }
+
     // 1. Primary Provider: Google Directions API (Official Google Navigation Route)
     try {
       const googleUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
@@ -83,7 +102,8 @@ export class RouteService {
         const encodedPolyline = response.data.routes[0].overview_polyline.points;
         const decodedPoints = decodePolyline(encodedPolyline);
         console.log(`[DEBUG-NAV] ✅ Google Directions success! Extracted ${decodedPoints.length} exact road points.`);
-        if (decodedPoints.length >= 2) {
+        if (decodedPoints.length >= 3) {
+          lastSuccessRouteCache.set(cacheKey, decodedPoints);
           return decodedPoints;
         }
       } else {
@@ -117,7 +137,8 @@ export class RouteService {
           }));
 
           console.log('[DEBUG-NAV] OSRM success! Polyline points count:', polylinePoints.length);
-          if (polylinePoints.length >= 2) {
+          if (polylinePoints.length >= 3) {
+            lastSuccessRouteCache.set(cacheKey, polylinePoints);
             return polylinePoints;
           }
         }
@@ -126,7 +147,15 @@ export class RouteService {
       }
     }
 
-    // 3. Fallback 3: Direct Straight Line
+    // 3. Fallback: If cache has any previous route for this destination, reuse it
+    for (const [key, cachedPoints] of lastSuccessRouteCache.entries()) {
+      if (key.endsWith(`->${Number(destination.latitude).toFixed(3)},${Number(destination.longitude).toFixed(3)}`)) {
+        console.log('[DEBUG-NAV] Reusing previous cached route for destination:', key);
+        return cachedPoints;
+      }
+    }
+
+    // 4. Fallback 4: Direct Straight Line
     console.warn('[DEBUG-NAV] Fallback to direct origin-destination line');
     return [
       { latitude: origin.latitude, longitude: origin.longitude },

@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
@@ -38,6 +39,8 @@ import { API_BASE_URL } from '../../config/env';
 
 const { width, height } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
+
+const GLOBAL_ROUTE_CACHE: Record<string, LatLng[]> = {};
 
 export const HomeScreen = () => {
   const { driver, logout, refreshProfile } = useAuth();
@@ -412,6 +415,9 @@ export const HomeScreen = () => {
     };
   }, [isOnline]);
 
+  // Persistent global route cache across screen navigation transitions & unmounts
+  const routeCacheRef = useRef<Record<string, LatLng[]>>(GLOBAL_ROUTE_CACHE);
+
   // Active order recovery on mount & driver change
   const checkActiveOrder = async () => {
     if (!driver) return;
@@ -429,6 +435,9 @@ export const HomeScreen = () => {
             longitudeDelta: 0.012,
           }, 1000);
         }
+      } else {
+        setActiveOrder(null);
+        setRouteCoordinates([]);
       }
     } catch (err) {
       console.warn('Check active order failed:', err);
@@ -441,40 +450,50 @@ export const HomeScreen = () => {
     }
   }, [driver]);
 
+  const isFocused = useIsFocused();
+
+  // Re-check active order status when HomeScreen comes back into focus
+  useEffect(() => {
+    if (isFocused && driver) {
+      checkActiveOrder();
+    }
+  }, [isFocused]);
+
   // Fetch and update actual road navigation route whenever driver moves or target changes
   useEffect(() => {
     let isMounted = true;
 
-    console.log('[DEBUG-NAV] Route useEffect fired.', {
-      activeOrderPresent: !!activeOrder,
-      activeOrderStatus: activeOrder?.status,
-      activeOrderId: activeOrder?.id,
-      pickup: activeOrder?.pickup,
-      dropoff: activeOrder?.dropoff,
-      location,
-    });
-
-    if (!activeOrder || !location) {
-      console.warn('[DEBUG-NAV] Route useEffect: activeOrder or location is missing/null!');
+    if (!activeOrder) {
       setRouteCoordinates([]);
       return;
     }
 
     const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
-    const targetLat = isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat;
-    const targetLng = isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng;
-
-    console.log('[DEBUG-NAV] Route target evaluation:', {
-      isPickedUp,
-      targetLat,
-      targetLng,
-      typeTargetLat: typeof targetLat,
-      typeTargetLng: typeof targetLng,
-    });
+    const targetLat = activeOrder ? (isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat) : null;
+    const targetLng = activeOrder ? (isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng) : null;
 
     if (!targetLat || !targetLng) {
-      console.warn('[DEBUG-NAV] Route useEffect: targetLat or targetLng is invalid/falsy!');
       setRouteCoordinates([]);
+      return;
+    }
+
+    const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
+
+    console.log('[ROUTE-EFFECT-DEBUG]', {
+      isFocused,
+      activeOrderId: activeOrder.id,
+      targetKey,
+      cachedLen: GLOBAL_ROUTE_CACHE[targetKey]?.length,
+      hasLocation: !!location,
+    });
+
+    // Immediately restore detailed route from persistent cache if available
+    if (GLOBAL_ROUTE_CACHE[targetKey] && GLOBAL_ROUTE_CACHE[targetKey].length >= 3) {
+      setRouteCoordinates(GLOBAL_ROUTE_CACHE[targetKey]);
+    }
+
+    if (!location) {
+      console.warn('[DEBUG-NAV] Route useEffect: location is missing/null!');
       return;
     }
 
@@ -487,20 +506,34 @@ export const HomeScreen = () => {
       .then((coords) => {
         console.log('[DEBUG-NAV] RouteService returned coords length:', coords ? coords.length : 0);
         if (isMounted && coords && coords.length >= 2) {
-          console.log('[DEBUG-NAV] Setting routeCoordinates state with length:', coords.length);
-          setRouteCoordinates(coords);
-        } else {
-          console.warn('[DEBUG-NAV] Coords condition failed: length < 2');
+          if (coords.length >= 3) {
+            GLOBAL_ROUTE_CACHE[targetKey] = coords;
+            routeCacheRef.current[targetKey] = coords;
+            setRouteCoordinates(coords);
+          } else {
+            // Received 2-point fallback (straight line)
+            // ONLY set state if we don't already have detailed points in cache or state
+            if (!GLOBAL_ROUTE_CACHE[targetKey] || GLOBAL_ROUTE_CACHE[targetKey].length < 3) {
+              setRouteCoordinates(coords);
+            } else {
+              console.log('[DEBUG-NAV] Preserving cached detailed route, ignoring 2-point straight line fallback.');
+              setRouteCoordinates(GLOBAL_ROUTE_CACHE[targetKey]);
+            }
+          }
         }
       })
       .catch((err) => {
         console.warn('[DEBUG-NAV] Failed to fetch road route:', err);
+        if (GLOBAL_ROUTE_CACHE[targetKey] && GLOBAL_ROUTE_CACHE[targetKey].length >= 3) {
+          setRouteCoordinates(GLOBAL_ROUTE_CACHE[targetKey]);
+        }
       });
 
     return () => {
       isMounted = false;
     };
   }, [
+    isFocused,
     location?.latitude,
     location?.longitude,
     activeOrder?.id,
@@ -798,7 +831,7 @@ export const HomeScreen = () => {
   };
 
   const navigationRef = useRef<any>(null);
-  const navigation = require('@react-navigation/native').useNavigation();
+  const navigation = useNavigation();
   navigationRef.current = navigation;
 
   // Render document upload missing notice if authorizationStatus is not approved
@@ -859,14 +892,30 @@ export const HomeScreen = () => {
             const targetLng = Number(isPickedUp ? dLng : pLng);
             const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
 
-            const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 2)
+            const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
+            const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
+
+            const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
               ? routeCoordinates
-              : (targetLat !== 0 && targetLng !== 0)
-                ? [
-                    { latitude: startLoc.latitude, longitude: startLoc.longitude },
-                    { latitude: targetLat, longitude: targetLng }
-                  ]
-                : [];
+              : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
+                ? cachedRoute
+                : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
+                  ? routeCoordinates
+                  : (targetLat !== 0 && targetLng !== 0)
+                    ? [
+                        { latitude: startLoc.latitude, longitude: startLoc.longitude },
+                        { latitude: targetLat, longitude: targetLng }
+                      ]
+                    : [];
+
+            console.log('[POLYLINE-DEBUG]', {
+              orderId: activeOrder.id,
+              targetKey,
+              routeCoordinatesLen: routeCoordinates.length,
+              cachedRouteLen: cachedRoute ? cachedRoute.length : undefined,
+              chosenPolylinePointsLen: polylinePoints.length,
+              routeCoordinatesSample: routeCoordinates.slice(0, 2),
+            });
 
             return (
               <>
@@ -901,6 +950,7 @@ export const HomeScreen = () => {
                 {/* Polyline */}
                 {polylinePoints.length >= 2 && (
                   <Polyline
+                    key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
                     coordinates={polylinePoints}
                     strokeColor="#2563eb"
                     strokeWidth={7}
