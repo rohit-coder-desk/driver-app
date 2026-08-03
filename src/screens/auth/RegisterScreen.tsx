@@ -143,7 +143,7 @@ export const RegisterScreen = () => {
         {/* Screen Title */}
         <View style={styles.header}>
           <Text style={styles.title}>Register Driver</Text>
-          <Text style={styles.subtitle}>Join CDX Last Mile Fleetyyyyyyy</Text>
+          <Text style={styles.subtitle}>Join CDX Last Mile Fleet</Text>
         </View>
 
         {/* Form Card */}
