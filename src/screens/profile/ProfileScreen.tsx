@@ -283,6 +283,19 @@ export const ProfileScreen = () => {
     return 'No file chosen';
   }, []);
 
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    try {
+      navigation.navigate(ROUTES.HOME);
+    } catch (error) {
+      navigation.popToTop?.();
+    }
+  }, [navigation]);
+
   const uploadItems = useMemo(
     () => [
       {
@@ -374,15 +387,9 @@ export const ProfileScreen = () => {
 
       {/* Header bar */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation.navigate(ROUTES.HOME);
-            }
-          }}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBack}
           activeOpacity={0.6}
           hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
         >
@@ -503,6 +510,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backButton: {
+    marginTop:40,
     width: 36,
     height: 36,
     borderRadius: 18,

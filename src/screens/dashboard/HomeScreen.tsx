@@ -985,6 +985,10 @@ export const HomeScreen = () => {
 
         {/* Driver Name & Phone / Vehicle Plate */}
         <View style={styles.headerInfoCol}>
+ <Text style={styles.driverNameTitle} numberOfLines={1}>
+            {'Welcome'}
+          </Text>
+
           <Text style={styles.driverNameTitle} numberOfLines={1}>
             {driver?.name || 'Driver'}
           </Text>

@@ -62,7 +62,7 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
     <CustomDriverModal
       visible={visible}
       type="delivered"
-      title="Delivery Completed! 🎉"
+      title="Delivery Completed!"
       message={`Rate your experience with ${customerName || 'the customer'}`}
       primaryButtonText="Submit Review"
       onPrimaryAction={handleSubmit}

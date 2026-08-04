@@ -91,7 +91,7 @@ export const MyProfileScreen = () => {
 
         {/* Section: Personal Info */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
+          <Text style={styles.sectionTitle}>PERSONAL DETAILSssss</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Username</Text>
             <Text style={styles.infoValue}>{driver?.username || 'N/A'}</Text>

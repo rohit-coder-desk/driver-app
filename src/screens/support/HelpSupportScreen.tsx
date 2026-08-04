@@ -1,11 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Platform, StatusBar, Linking, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  Platform,
+  StatusBar,
+  Linking,
+  ScrollView,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 
 export const HelpSupportScreen = () => {
   const navigation = useNavigation<any>();
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate(ROUTES.HOME);
+    }
+  };
 
   const openSupportEmail = () => {
     Linking.openURL('mailto:support@driverapp.example.com?subject=Driver%20Support%20Request');
@@ -16,50 +34,54 @@ export const HelpSupportScreen = () => {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation.navigate(ROUTES.HOME);
-            }
-          }}
+          onPress={handleBack}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & Support</Text>
-        <View style={{ width: 44 }} />
+        <View style={styles.headerSpacer} />
       </View>
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Need assistance?</Text>
-        <Text style={styles.description}>
-          Our driver support team is available 24/7. Select an option below to get instant help with your trips or account.
-        </Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroAccent} />
+          <View style={styles.heroTextWrap}>
+            <Text style={styles.eyebrow}>Driver support center</Text>
+            <Text style={styles.title}>Need help right now?</Text>
+            <Text style={styles.description}>
+              Our team is available 24/7 for trip, document, and account assistance.
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.gridContainer}>
-          <TouchableOpacity style={styles.gridCard} onPress={openSupportEmail} activeOpacity={0.8}>
-            <View style={[styles.gridIconBox, { backgroundColor: '#eff6ff' }]}>
-              <Text style={styles.gridIconEmoji}>📧</Text>
+          <TouchableOpacity style={styles.gridCard} onPress={openSupportEmail} activeOpacity={0.85}>
+            <View style={styles.gridBadge}>
+              <Text style={styles.gridBadgeText}>Email</Text>
             </View>
             <Text style={styles.gridCardTitle}>Email Support</Text>
-            <Text style={styles.gridCardSub}>Send us a message</Text>
+            <Text style={styles.gridCardSub}>Send a detailed message with your issue.</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.gridCard} onPress={openSupportEmail} activeOpacity={0.8}>
-            <View style={[styles.gridIconBox, { backgroundColor: '#ecfdf5' }]}>
-              <Text style={styles.gridIconEmoji}>📞</Text>
+          <TouchableOpacity style={styles.gridCard} onPress={openSupportEmail} activeOpacity={0.85}>
+            <View style={styles.gridBadgeSecondary}>
+              <Text style={styles.gridBadgeText}>Call</Text>
             </View>
             <Text style={styles.gridCardTitle}>Call Dispatch</Text>
-            <Text style={styles.gridCardSub}>Hotline assistance</Text>
+            <Text style={styles.gridCardSub}>Get urgent help from the operations team.</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardIcon}>💬</Text>
+            <View style={styles.cardBadge}>
+              <Text style={styles.cardBadgeText}>24/7</Text>
+            </View>
             <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Direct Driver Helpdesk</Text>
-              <Text style={styles.cardText}>Email support directly for document verification & payout queries.</Text>
+              <Text style={styles.cardText}>Connect with support for document verification, payouts, and trip-related questions.</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.actionBtn} onPress={openSupportEmail} activeOpacity={0.85}>
@@ -80,7 +102,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -88,34 +110,75 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   backBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSoft,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   backBtnText: {
-    fontSize: 24,
+    fontSize: 20,
     color: COLORS.textPrimary,
+    fontWeight: '700',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: COLORS.textPrimary,
   },
+  headerSpacer: {
+    width: 40,
+  },
   content: {
     padding: 18,
+    paddingBottom: 32,
+  },
+  heroCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 5,
+  },
+  heroAccent: {
+    width: 4,
+    height: 70,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+    marginRight: 12,
+  },
+  heroTextWrap: {
+    flex: 1,
+  },
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: COLORS.primary,
+    marginBottom: 4,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: COLORS.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   description: {
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 20,
     color: COLORS.textSecondary,
-    marginBottom: 20,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -124,37 +187,50 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.12,
     shadowRadius: 10,
     elevation: 3,
   },
-  gridIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+  gridBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0, 102, 255, 0.15)',
     marginBottom: 12,
   },
-  gridIconEmoji: {
-    fontSize: 20,
+  gridBadgeSecondary: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    marginBottom: 12,
+  },
+  gridBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   gridCardTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: COLORS.textPrimary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   gridCardSub: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
   card: {
     backgroundColor: COLORS.surface,
@@ -162,20 +238,29 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 16,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.14,
     shadowRadius: 12,
     elevation: 4,
   },
   cardHeaderRow: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  cardIcon: {
-    fontSize: 24,
+  cardBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginRight: 12,
+  },
+  cardBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: 0.4,
   },
   cardHeaderText: {
     flex: 1,

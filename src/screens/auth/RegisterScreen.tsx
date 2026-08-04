@@ -89,8 +89,8 @@ export const RegisterScreen = () => {
     } else {
       // Remove leading zeros if typed
       rawPhone = rawPhone.replace(/^0+/, '');
-      if (rawPhone.length < 7 || rawPhone.length > 12) {
-        setError('Please enter a valid mobile number (e.g. 10 digits).');
+      if (!/^\d{10}$/.test(rawPhone)) {
+        setError('Mobile Number must be exactly 10 digits.');
         return;
       }
       finalPhone = `${selectedCountry.code}${rawPhone}`;
@@ -202,7 +202,7 @@ export const RegisterScreen = () => {
                 keyboardType="phone-pad"
                 value={phone}
                 onChangeText={setPhone}
-                maxLength={12}
+                maxLength={10}
               />
             </View>
           </View>
