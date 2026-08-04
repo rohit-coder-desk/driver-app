@@ -865,150 +865,116 @@ export const HomeScreen = () => {
     <View style={styles.container}>
       <Loader visible={loading} message="Processing..." />
 
-      {isOnline ? (
-        /* Online State: Full Screen Map */
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={StyleSheet.absoluteFill}
-          initialRegion={region}
-          showsUserLocation={true}
-          showsMyLocationButton={false}
-          onUserLocationChange={(event) => {
-            const coords = event.nativeEvent?.coordinate;
-            if (coords?.latitude && coords?.longitude) {
-              console.log(`[LOCATION-DEBUG] [MAPVIEW-NATIVE-GPS] Lat: ${coords.latitude}, Lng: ${coords.longitude}`);
-              syncDriverLocation(coords.latitude, coords.longitude);
-            }
-          }}
-        >
-          {location && (
-            <Marker
-              coordinate={location}
-              title={driver?.name || 'Driver'}
-              description="Online - Ready for tasks"
-              zIndex={99}
-            >
-              <View style={styles.driverMarkerContainer}>
-                <View style={styles.driverMarkerPulse} />
-                <View style={styles.driverMarkerBadge}>
-                  <Text style={styles.driverMarkerEmoji}>🚘</Text>
-                </View>
-              </View>
-            </Marker>
-          )}
-
-          {/* Active Order Pickup & Delivery Markers + Route Polyline */}
-          {activeOrder && (() => {
-            const pLat = Number(activeOrder.pickup?.lat || 0);
-            const pLng = Number(activeOrder.pickup?.lng || 0);
-            const dLat = Number(activeOrder.dropoff?.lat || 0);
-            const dLng = Number(activeOrder.dropoff?.lng || 0);
-
-            console.log(`[STAGE-7] [STORED-IN-ACTIVEORDER-STATE] Order #${activeOrder.id} (${activeOrder.status}) - Pickup: (${activeOrder.pickup?.lat}, ${activeOrder.pickup?.lng}), Dropoff: (${activeOrder.dropoff?.lat}, ${activeOrder.dropoff?.lng})`);
-            console.log(`[STAGE-8] [PASSED-TO-PICKUP-MARKER] coordinate={{ latitude: ${pLat}, longitude: ${pLng} }}`);
-            console.log(`[STAGE-9] [PASSED-TO-DROPOFF-MARKER] coordinate={{ latitude: ${dLat}, longitude: ${dLng} }}`);
-
-            const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
-            const targetLat = Number(isPickedUp ? dLat : pLat);
-            const targetLng = Number(isPickedUp ? dLng : pLng);
-            const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
-
-            const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
-            const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
-
-            const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
-              ? routeCoordinates
-              : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
-                ? cachedRoute
-                : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
-                  ? routeCoordinates
-                  : (targetLat !== 0 && targetLng !== 0)
-                    ? [
-                      { latitude: startLoc.latitude, longitude: startLoc.longitude },
-                      { latitude: targetLat, longitude: targetLng }
-                    ]
-                    : [];
-
-            console.log('[POLYLINE-DEBUG]', {
-              orderId: activeOrder.id,
-              targetKey,
-              routeCoordinatesLen: routeCoordinates.length,
-              cachedRouteLen: cachedRoute ? cachedRoute.length : undefined,
-              chosenPolylinePointsLen: polylinePoints.length,
-              routeCoordinatesSample: routeCoordinates.slice(0, 2),
-            });
-
-            return (
-              <>
-                {/* Pickup Marker */}
-                {pLat !== 0 && pLng !== 0 && (
-                  <Marker
-                    coordinate={{ latitude: pLat, longitude: pLng }}
-                    title="Pickup Location"
-                    description={activeOrder.pickup?.address || 'Pickup'}
-                    zIndex={999}
-                  >
-                    <View style={styles.pickupMarkerBadge}>
-                      <Text style={styles.markerBadgeEmoji}>🏪</Text>
-                    </View>
-                  </Marker>
-                )}
-
-                {/* Delivery Marker */}
-                {dLat !== 0 && dLng !== 0 && (
-                  <Marker
-                    coordinate={{ latitude: dLat, longitude: dLng }}
-                    title="Delivery Location"
-                    description={activeOrder.dropoff?.address || 'Delivery'}
-                    zIndex={999}
-                  >
-                    <View style={styles.deliveryMarkerBadge}>
-                      <Text style={styles.markerBadgeEmoji}>🏁</Text>
-                    </View>
-                  </Marker>
-                )}
-
-                {/* Polyline */}
-                {polylinePoints.length >= 2 && (
-                  <Polyline
-                    key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
-                    coordinates={polylinePoints}
-                    strokeColor="#2563eb"
-                    strokeWidth={7}
-                    lineCap="round"
-                    lineJoin="round"
-                    geodesic={true}
-                    zIndex={9999}
-                  />
-                )}
-              </>
-            );
-          })()}
-        </MapView>
-      ) : (
-        /* Offline State: Styled Clean Dashboard Card */
-        <View style={styles.offlineContainer}>
-          <View style={styles.offlineCenterBox}>
-            <View style={styles.offlineCircleIllustration}>
-              <View style={styles.wifiIconBadge}>
-                <Text style={styles.wifiIconEmoji}>📶</Text>
-                <View style={styles.wifiCrossBadge}>
-                  <Text style={styles.wifiCrossText}>✕</Text>
-                </View>
+      {/* Full Screen Google Map (Always Active) */}
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={StyleSheet.absoluteFill}
+        initialRegion={region}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+        onUserLocationChange={(event) => {
+          const coords = event.nativeEvent?.coordinate;
+          if (coords?.latitude && coords?.longitude) {
+            syncDriverLocation(coords.latitude, coords.longitude);
+          }
+        }}
+      >
+        {location && (
+          <Marker
+            coordinate={location}
+            title={driver?.name || 'Driver'}
+            description={isOnline ? 'Online - Active' : 'Offline'}
+            zIndex={99}
+          >
+            <View style={styles.driverMarkerContainer}>
+              <View style={styles.driverMarkerPulse} />
+              <View style={styles.driverMarkerBadge}>
+                <Text style={styles.driverMarkerEmoji}>🚘</Text>
               </View>
             </View>
-            <Text style={styles.youreOfflineText}>YOU'RE OFFLINE</Text>
-            <Text style={styles.offlineDesc}>
-              Connect to start receiving ride requests and tracking your earnings in real-time.
-            </Text>
-          </View>
-        </View>
-      )}
+          </Marker>
+        )}
 
-      {/* Floating Header Panel directly positioned absolutely for touch reliability */}
-      <View style={styles.floatingHeader}>
-        {/* Hamburger Circular Button */}
+        {/* Active Order Pickup & Delivery Markers + Route Polyline */}
+        {activeOrder && (() => {
+          const pLat = Number(activeOrder.pickup?.lat || 0);
+          const pLng = Number(activeOrder.pickup?.lng || 0);
+          const dLat = Number(activeOrder.dropoff?.lat || 0);
+          const dLng = Number(activeOrder.dropoff?.lng || 0);
+
+          const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+          const targetLat = Number(isPickedUp ? dLat : pLat);
+          const targetLng = Number(isPickedUp ? dLng : pLng);
+          const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
+
+          const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
+          const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
+
+          const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
+            ? routeCoordinates
+            : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
+              ? cachedRoute
+              : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
+                ? routeCoordinates
+                : (targetLat !== 0 && targetLng !== 0)
+                  ? [
+                    { latitude: startLoc.latitude, longitude: startLoc.longitude },
+                    { latitude: targetLat, longitude: targetLng }
+                  ]
+                  : [];
+
+          return (
+            <>
+              {/* Pickup Marker */}
+              {pLat !== 0 && pLng !== 0 && (
+                <Marker
+                  coordinate={{ latitude: pLat, longitude: pLng }}
+                  title="Pickup Location"
+                  description={activeOrder.pickup?.address || 'Pickup'}
+                  zIndex={999}
+                >
+                  <View style={styles.pickupMarkerBadge}>
+                    <Text style={styles.markerBadgeEmoji}>🏪</Text>
+                  </View>
+                </Marker>
+              )}
+
+              {/* Delivery Marker */}
+              {dLat !== 0 && dLng !== 0 && (
+                <Marker
+                  coordinate={{ latitude: dLat, longitude: dLng }}
+                  title="Delivery Location"
+                  description={activeOrder.dropoff?.address || 'Delivery'}
+                  zIndex={999}
+                >
+                  <View style={styles.deliveryMarkerBadge}>
+                    <Text style={styles.markerBadgeEmoji}>🏁</Text>
+                  </View>
+                </Marker>
+              )}
+
+              {/* Polyline */}
+              {polylinePoints.length >= 2 && (
+                <Polyline
+                  key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
+                  coordinates={polylinePoints}
+                  strokeColor="#2563eb"
+                  strokeWidth={7}
+                  lineCap="round"
+                  lineJoin="round"
+                  geodesic={true}
+                  zIndex={9999}
+                />
+              )}
+            </>
+          );
+        })()}
+      </MapView>
+
+      {/* Top Header Card matching reference image */}
+      <View style={styles.floatingHeaderCard}>
+        {/* Hamburger Menu Trigger */}
         <TouchableOpacity
           style={styles.hamburgerCircle}
           onPress={openDrawer}
@@ -1017,35 +983,36 @@ export const HomeScreen = () => {
           <Text style={styles.hamburgerIconText}>☰</Text>
         </TouchableOpacity>
 
-        {/* Center Status Display */}
-        <View style={styles.statusDisplay}>
-          {isOnline ? (
-            <View style={styles.onlineStatusRow}>
-              <View style={styles.greenDot} />
-              <View style={styles.statusTextCol}>
-                <Text style={styles.statusTitle}>You're Online</Text>
-                {/* <Text style={styles.statusTimer}>{formatOnlineTime(onlineSeconds)}</Text> */}
-              </View>
-            </View>
-          ) : (
-            <View style={styles.offlineTextCol}>
-              <Text style={styles.helloText}>Hello {driver?.name?.split(' ')[0] || 'driver'}</Text>
-              <View style={styles.offlineStatusRow}>
-                <View style={styles.redDot} />
-                <Text style={styles.offlineStatusTitle}>offline</Text>
-              </View>
-            </View>
-          )}
+        {/* Driver Name & Phone / Vehicle Plate */}
+        <View style={styles.headerInfoCol}>
+          <Text style={styles.driverNameTitle} numberOfLines={1}>
+            {driver?.name || 'Driver'}
+          </Text>
+          {driver?.phone ? (
+            <Text style={styles.driverIdSubtitle} numberOfLines={1}>
+              {driver.phone}
+            </Text>
+          ) : driver?.vehiclePlate ? (
+            <Text style={styles.driverIdSubtitle} numberOfLines={1}>
+              {driver.vehiclePlate}
+            </Text>
+          ) : null}
         </View>
 
-        {/* Toggle Switch */}
-        <Switch
-          trackColor={{ false: '#cbd5e1', true: '#86efac' }}
-          thumbColor={isOnline ? '#22c55e' : '#64748b'}
-          ios_backgroundColor="#cbd5e1"
-          onValueChange={handleToggleOnline}
-          value={isOnline}
-        />
+        {/* Right Status Pill & Switch Toggle */}
+        <View style={styles.headerRightControls}>
+          <View style={[styles.headerStatusPill, isOnline ? styles.onlinePillBg : styles.offlinePillBg]}>
+            <View style={[styles.headerStatusDot, { backgroundColor: isOnline ? '#22C55E' : '#EF4444' }]} />
+            <Text style={styles.headerStatusPillText}>{isOnline ? 'Online' : 'Offline'}</Text>
+          </View>
+          <Switch
+            trackColor={{ false: '#1E3A8A', true: '#0066FF' }}
+            thumbColor={isOnline ? '#FFFFFF' : '#94A3B8'}
+            ios_backgroundColor="#1E3A8A"
+            onValueChange={handleToggleOnline}
+            value={isOnline}
+          />
+        </View>
       </View>
 
       {/* Floating GPS Recenter Button - Only visible when Online */}
@@ -1210,9 +1177,7 @@ export const HomeScreen = () => {
                   onPress={() => setDrawerOpen(false)}
                   activeOpacity={0.75}
                 >
-                  <View style={[styles.drawerItemIconBox, styles.activeDrawerItemIconBox]}>
-                    <HomeIcon color={COLORS.primary} size={18} />
-                  </View>
+                  <HomeIcon color="#0066FF" size={20} />
                   <Text style={[styles.drawerItemText, styles.activeDrawerItemText]}>Home</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1225,9 +1190,7 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.drawerItemIconBox}>
-                    <ProfileIcon color="#64748b" size={18} />
-                  </View>
+                  <ProfileIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>My Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1240,14 +1203,10 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.drawerItemIconBox}>
-                    <EditIcon color="#64748b" size={18} />
-                  </View>
+                  <EditIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Edit Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
-
-                <View style={styles.drawerSectionDivider} />
 
                 <TouchableOpacity
                   style={styles.drawerItem}
@@ -1257,9 +1216,7 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.drawerItemIconBox}>
-                    <OrdersIcon color="#64748b" size={18} />
-                  </View>
+                  <OrdersIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>My Orders</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1272,14 +1229,10 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.drawerItemIconBox}>
-                    <DocumentsIcon color="#64748b" size={18} />
-                  </View>
+                  <DocumentsIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Documents</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
-
-                <View style={styles.drawerSectionDivider} />
 
                 <TouchableOpacity
                   style={styles.drawerItem}
@@ -1289,9 +1242,7 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.drawerItemIconBox}>
-                    <SupportIcon color="#64748b" size={18} />
-                  </View>
+                  <SupportIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Help & Support</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1304,9 +1255,7 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.drawerItemIconBox}>
-                    <EarningsIcon color="#64748b" size={18} />
-                  </View>
+                  <EarningsIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Earnings</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1429,47 +1378,96 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  floatingHeader: {
+  floatingHeaderCard: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 52 : Math.max(StatusBar.currentHeight || 0, 24) + 12,
-    left: 16,
-    right: 16,
-    height: 60,
-    backgroundColor: '#ffffff',
-    borderRadius: 30,
+    top: Platform.OS === 'ios' ? 48 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
+    left: 14,
+    right: 14,
+    backgroundColor: '#0B2246',
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 8,
-    paddingRight: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 12,
     zIndex: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#1E3A8A',
   },
   hamburgerCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#f1f5f9',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 3,
+    borderColor: '#1E3A8A',
+    marginRight: 12,
   },
   hamburgerIconText: {
-    color: '#0f172a',
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  headerInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  greetingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  driverNameTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+    marginVertical: 1,
+  },
+  driverIdSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  headerRightControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    backgroundColor: '#0D2A54',
+  },
+  onlinePillBg: {
+    backgroundColor: '#0D2A54',
+    borderColor: '#0066FF',
+  },
+  offlinePillBg: {
+    backgroundColor: '#0D2A54',
+    borderColor: '#1E3A8A',
+  },
+  headerStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  headerStatusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   statusDisplay: {
     flex: 1,
@@ -1680,34 +1678,35 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#08162E',
     zIndex: 100,
     justifyContent: 'space-between',
     shadowColor: '#000000',
-    shadowOffset: { width: 6, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 20,
+    shadowOffset: { width: 8, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 24,
+    borderRightWidth: 1,
+    borderRightColor: '#16325B',
   },
   drawerMainContent: {
     flex: 1,
   },
   drawerHeader: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#08162E',
     paddingTop: Platform.OS === 'ios' ? 56 : Math.max(StatusBar.currentHeight || 0, 24) + 16,
-    paddingBottom: 24,
+    paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomRightRadius: 24,
   },
   avatarBorder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2.5,
-    borderColor: '#2563eb',
-    backgroundColor: '#1e293b',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#0066FF',
+    backgroundColor: '#0D2040',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1717,8 +1716,8 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   avatarInitialsText: {
-    color: '#ffffff',
-    fontSize: 24,
+    color: '#FFFFFF',
+    fontSize: 22,
     fontWeight: 'bold',
   },
   drawerHeaderDetails: {
@@ -1731,16 +1730,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   drawerNameText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   verifiedBadge: {
-    color: '#3b82f6',
+    color: '#0066FF',
     fontSize: 12,
     fontWeight: 'bold',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#0D2040',
     width: 18,
     height: 18,
     borderRadius: 9,
@@ -1748,20 +1747,22 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   drawerPhoneText: {
-    color: '#94a3b8',
-    fontSize: 13,
+    color: '#94A3B8',
+    fontSize: 12.5,
     fontWeight: '500',
     marginTop: 2,
   },
   drawerStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: '#0D2040',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
-    marginTop: 6,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#16325B',
   },
   drawerStatusDot: {
     width: 6,
@@ -1770,121 +1771,97 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   drawerStatusText: {
-    color: '#e2e8f0',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  drawerStatsStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#f8fafc',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  drawerStatBox: {
-    alignItems: 'center',
-  },
-  drawerStatValue: {
-    fontSize: 13,
+    color: '#FFFFFF',
+    fontSize: 10.5,
     fontWeight: '800',
-    color: '#0f172a',
-  },
-  drawerStatLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 1,
-  },
-  drawerStatDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#cbd5e1',
+    letterSpacing: 0.5,
   },
   drawerMenu: {
     flex: 1,
   },
   drawerMenuContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    gap: 4,
   },
   drawerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 14,
     borderRadius: 14,
     backgroundColor: 'transparent',
   },
   activeDrawerItem: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    backgroundColor: '#0F2B5B',
+    borderRadius: 14,
   },
   drawerItemIconBox: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#0F2447',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#16325B',
   },
   activeDrawerItemIconBox: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#0066FF',
+    borderColor: '#0066FF',
   },
   drawerItemEmoji: {
     fontSize: 18,
   },
   drawerItemText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '600',
-    color: '#334155',
-    marginLeft: 12,
+    color: '#94A3B8',
+    marginLeft: 14,
   },
   activeDrawerItemText: {
-    color: '#2563eb',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   drawerItemChevron: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '400',
-    color: '#94a3b8',
+    color: '#64748B',
   },
   drawerSectionDivider: {
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#16325B',
     marginVertical: 8,
-    marginHorizontal: 6,
+    marginHorizontal: 8,
   },
   drawerFooter: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 14,
+    paddingTop: 14,
     paddingBottom: Platform.OS === 'ios' ? 36 : 20,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    borderTopColor: '#16325B',
+    backgroundColor: '#08162E',
   },
   logoutBtn: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     height: 48,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 12,
-    gap: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   logoutBtnEmoji: {
     fontSize: 18,
   },
   logoutBtnText: {
-    color: '#ef4444',
-    fontSize: 15,
-    fontWeight: '700',
+    color: '#EF4444',
+    fontSize: 14.5,
+    fontWeight: '800',
     letterSpacing: 0.3,
   },
   driverMarkerContainer: {

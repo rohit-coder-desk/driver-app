@@ -17,7 +17,17 @@ export const OrderDetailsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate(ROUTES.HOME);
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>

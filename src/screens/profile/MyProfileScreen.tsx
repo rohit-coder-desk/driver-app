@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
-import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { API_BASE_URL } from '../../config/env';
 
@@ -28,7 +27,7 @@ export const MyProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
 
       {/* Header Bar */}
       <View style={styles.header}>
@@ -151,70 +150,73 @@ export const MyProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#061A3A',
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
-    paddingBottom: 12,
+    paddingBottom: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0B2246',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1E3A8A',
   },
   backBtn: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
   },
   backBtnText: {
-    fontSize: 24,
-    color: COLORS.textPrimary,
+    fontSize: 20,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
   },
   editHeaderBtn: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: '#0D2A54',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#0066FF',
   },
   editHeaderBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: '#0066FF',
   },
   scrollContent: {
     padding: 16,
     gap: 20,
   },
   profileCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
+    backgroundColor: '#0B2246',
+    borderRadius: 20,
     padding: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: COLORS.shadow,
+    borderColor: '#1E3A8A',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.35,
     shadowRadius: 14,
-    elevation: 6,
+    elevation: 8,
   },
   avatarContainer: {
     width: 84,
     height: 84,
     borderRadius: 42,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: '#0066FF',
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -225,30 +227,30 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitials: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#0066FF',
   },
   driverName: {
     fontSize: 22,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   driverPhone: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.textSecondary,
+    color: '#94A3B8',
     marginBottom: 2,
   },
   driverEmail: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: '#94A3B8',
     marginBottom: 14,
   },
   statusBadgesRow: {
@@ -263,43 +265,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusBadge: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#052E16',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803D',
   },
   activeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10b981',
+    backgroundColor: '#22C55E',
     marginRight: 6,
   },
   statusBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#047857',
+    color: '#22C55E',
   },
   verifyBadge: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: '#0D2A54',
     borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
+    borderColor: '#0066FF',
   },
   verifyBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: '#0066FF',
   },
   sectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: '#0B2246',
+    borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1E3A8A',
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: '#94A3B8',
     letterSpacing: 1,
     marginBottom: 14,
   },
@@ -311,40 +313,40 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#1E3A8A',
   },
   infoLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.textSecondary,
+    color: '#94A3B8',
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
   },
   infoValueHighlight: {
     fontSize: 14,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: '#0066FF',
   },
   editProfileBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#0066FF',
     height: 52,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: COLORS.primary,
+    shadowColor: '#0066FF',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
   },
   editProfileBtnText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });
 

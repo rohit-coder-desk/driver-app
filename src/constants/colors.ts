@@ -23,25 +23,25 @@ export interface AppColors {
 }
 
 export const COLORS: AppColors = {
-  background: '#f8fafc',       // Modern ultra-light slate background
-  surface: '#ffffff',          // Pure white surface
-  surfaceSoft: '#f1f5f9',      // Subtle slate surface tint
-  card: '#ffffff',             // Pure white card
-  textPrimary: '#0f172a',      // Dark slate primary text
-  textSecondary: '#334155',    // Slate-700 secondary text
-  textMuted: '#64748b',        // Slate-500 muted text
-  primary: '#2563eb',          // Electric blue primary
-  primaryLight: '#eff6ff',     // Light blue tint
-  primaryBorder: '#bfdbfe',    // Soft blue border
-  accent: '#3b82f6',           // Bright accent blue
-  border: '#e2e8f0',           // Crisp subtle border
-  borderSolid: '#cbd5e1',      // Slate border
-  error: '#ef4444',            // Vibrant red
-  errorLight: '#fef2f2',       // Soft red tint
-  errorBorder: '#fecaca',      // Light red border
-  success: '#10b981',          // Emerald green
-  successLight: '#ecfdf5',     // Soft emerald tint
-  warning: '#f59e0b',          // Warm amber
-  warningLight: '#fffbe8',     // Soft amber tint
-  shadow: 'rgba(15, 23, 42, 0.08)', // Soft drop shadow
+  background: '#061A3A',       // Deep Navy background
+  surface: '#0B2246',          // Surface Navy
+  surfaceSoft: '#0D2A54',      // Elevated Surface Navy
+  card: '#0B2246',             // Surface Navy Card
+  textPrimary: '#FFFFFF',      // Crisp White Primary Text
+  textSecondary: '#94A3B8',    // Muted Slate Secondary Text
+  textMuted: '#64748B',        // Muted Slate Text
+  primary: '#0066FF',          // Electric Blue Primary
+  primaryLight: '#0D2A54',     // Dark Navy Tint
+  primaryBorder: '#1E3A8A',    // Navy Border
+  accent: '#0066FF',           // Bright Accent Blue
+  border: '#1E3A8A',           // Crisp Navy Border
+  borderSolid: '#1E3A8A',      // Solid Navy Border
+  error: '#EF4444',            // Vibrant Red
+  errorLight: 'rgba(239, 68, 68, 0.15)', // Soft Red Tint
+  errorBorder: '#EF4444',      // Red Border
+  success: '#10B981',          // Emerald Green
+  successLight: '#052E16',     // Soft Green Tint
+  warning: '#F59E0B',          // Warm Amber
+  warningLight: '#451A03',     // Soft Amber Tint
+  shadow: 'rgba(0, 0, 0, 0.4)', // Deep shadow
 };

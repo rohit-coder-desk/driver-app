@@ -154,24 +154,24 @@ const styles = StyleSheet.create({
   addressLabel: {
     fontSize: 9.5,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#94A3B8',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   addressText: {
     fontSize: 13.5,
     fontWeight: '600',
-    color: '#0F172A',
+    color: '#FFFFFF',
     lineHeight: 18,
   },
   infoRow: {
     flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0D2A54',
     borderRadius: 12,
     padding: 12,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#1E3A8A',
     alignItems: 'center',
   },
   infoItem: {
@@ -181,18 +181,18 @@ const styles = StyleSheet.create({
   infoDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#1E3A8A',
   },
   infoLabel: {
     fontSize: 9.5,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#94A3B8',
     letterSpacing: 0.5,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#FFFFFF',
     marginTop: 2,
   },
 });

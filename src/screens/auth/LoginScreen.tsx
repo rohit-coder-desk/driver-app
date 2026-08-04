@@ -12,11 +12,10 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
-import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
 
-// Custom Graphical Eye Icon Component with Slash toggle
+// Custom Graphical Eye Icon Component
 const EyeIcon = ({ visible }: { visible: boolean }) => {
   return (
     <View style={styles.eyeIconContainer}>
@@ -31,6 +30,7 @@ export const LoginScreen = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [securePassword, setSecurePassword] = useState(true);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +49,6 @@ export const LoginScreen = () => {
       await login(username.trim(), password);
     } catch (err: any) {
       if (err.message === 'VERIFY_OTP_REQUIRED' || unverifiedPhone) {
-        // Redirect to OTP verification screen
         navigation.navigate(ROUTES.OTP_VERIFICATION);
       } else {
         setError(err.message || err || 'Invalid username or password.');
@@ -67,78 +66,107 @@ export const LoginScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <Loader visible={loading} message="Authenticating..." />
 
-        {/* Branding header */}
+        {/* Top Header & Branding */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
+          <View style={styles.logoBadge}>
             <Image
               source={require('../../assets/images/logo.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.title}>
-            CDX <Text style={styles.blueText}>LAST</Text>
-          </Text>
-          <Text style={styles.subtitle}>Driver Portal</Text>
+          <Text style={styles.title}>Driver Login</Text>
+          <Text style={styles.subtitle}>Welcome back! Please login to continue your deliveries.</Text>
         </View>
 
-        {/* Form Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Secure Log In</Text>
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
+        {/* Input Form */}
+        <View style={styles.formContainer}>
           {/* Username / Phone Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username</Text>
+          <Text style={styles.label}>Username or Phone Number</Text>
+          <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
-              placeholder="Enter username"
-              placeholderTextColor="#94a3b8"
+              placeholder="Enter username or phone number"
+              placeholderTextColor="#64748B"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(txt) => {
+                setUsername(txt);
+                setError(null);
+              }}
               autoCapitalize="none"
-              autoCorrect={false}
             />
           </View>
 
           {/* Password Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Enter password"
-                placeholderTextColor="#94a3b8"
-                secureTextEntry={securePassword}
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TouchableOpacity onPress={() => setSecurePassword(!securePassword)} style={styles.eyeButton}>
-                <EyeIcon visible={!securePassword} />
-              </TouchableOpacity>
-            </View>
+          <Text style={[styles.label, { marginTop: 16 }]}>Password</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter password"
+              placeholderTextColor="#64748B"
+              secureTextEntry={securePassword}
+              value={password}
+              onChangeText={(txt) => {
+                setPassword(txt);
+                setError(null);
+              }}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setSecurePassword(!securePassword)}
+              activeOpacity={0.7}
+            >
+              <EyeIcon visible={!securePassword} />
+            </TouchableOpacity>
           </View>
 
-          {/* Sign In Button */}
-          <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>Login</Text>
+          {/* Options Row */}
+          <View style={styles.optionsRow}>
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRememberMe(!rememberMe)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.rememberText}>Remember me</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate(ROUTES.REGISTER)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Login Button */}
+          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} activeOpacity={0.85}>
+            <Text style={styles.loginBtnText}>Login</Text>
+          </TouchableOpacity>
+
+          {/* Register Link */}
+          <TouchableOpacity
+            style={styles.registerLink}
+            onPress={() => navigation.navigate(ROUTES.REGISTER)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.registerLinkText}>
+              Don't have an account? <Text style={styles.registerHighlight}>Register as Driver</Text>
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Footer links */}
-        <View style={styles.footer}>
-          <TouchableOpacity onPress={() => navigation.navigate(ROUTES.REGISTER)}>
-            <Text style={styles.footerLink}>
-              New to CDX? <Text style={styles.footerLinkHighlight}>Register Driver</Text>
-            </Text>
-          </TouchableOpacity>
+        {/* Footer */}
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>Dispatcher Logistics Partner Platform</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -148,195 +176,207 @@ export const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#061A3A',
   },
   scrollContainer: {
     flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 32,
     justifyContent: 'center',
-    padding: 24,
   },
   header: {
     alignItems: 'center',
     marginBottom: 28,
   },
-  logoContainer: {
-    width: 76,
-    height: 76,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 10,
+  logoBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
     marginBottom: 16,
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
   logoImage: {
-    width: '100%',
-    height: '100%',
+    width: 58,
+    height: 58,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#0f172a',
-    letterSpacing: -0.5,
-  },
-  blueText: {
-    color: '#2563eb',
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  cardHeader: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 20,
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#94A3B8',
     textAlign: 'center',
-    letterSpacing: 0.3,
+    lineHeight: 20,
   },
-  errorContainer: {
-    backgroundColor: '#fef2f2',
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#EF4444',
     borderRadius: 12,
     padding: 12,
     marginBottom: 18,
   },
   errorText: {
-    color: '#ef4444',
+    color: '#FCA5A5',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
   },
-  inputGroup: {
-    marginBottom: 18,
+  formContainer: {
+    width: '100%',
+    backgroundColor: '#0B2246',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
     marginBottom: 8,
-    marginLeft: 2,
   },
-  input: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 52,
-    color: '#0f172a',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  passwordContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0D2A54',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#1E3A8A',
     borderRadius: 14,
     height: 52,
     paddingHorizontal: 16,
   },
-  passwordInput: {
+  input: {
     flex: 1,
-    color: '#0f172a',
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '500',
-    height: '100%',
-    padding: 0,
   },
-  eyeButton: {
+  eyeBtn: {
     padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   eyeIconContainer: {
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
   },
   eyeOuter: {
-    width: 20,
+    width: 18,
     height: 12,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#64748b',
-    backgroundColor: 'transparent',
+    borderWidth: 1.8,
+    borderColor: '#94A3B8',
   },
   eyeInner: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#64748b',
+    backgroundColor: '#94A3B8',
     position: 'absolute',
   },
   eyeSlash: {
-    width: 24,
-    height: 2,
-    backgroundColor: '#64748b',
     position: 'absolute',
+    width: 20,
+    height: 2,
+    backgroundColor: '#EF4444',
     transform: [{ rotate: '-45deg' }],
   },
-  button: {
-    backgroundColor: '#2563eb',
-    borderRadius: 14,
-    height: 52,
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+    marginBottom: 20,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#0066FF',
+    backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    marginRight: 8,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+  checkboxChecked: {
+    backgroundColor: '#0066FF',
   },
-  footer: {
-    alignItems: 'center',
-    marginTop: 24,
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
   },
-  footerLink: {
-    color: '#64748b',
+  rememberText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  forgotText: {
     fontSize: 13,
     fontWeight: '600',
+    color: '#0066FF',
   },
-  footerLinkHighlight: {
-    color: '#2563eb',
-    fontWeight: 'bold',
+  loginBtn: {
+    backgroundColor: '#0066FF',
+    borderRadius: 14,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  loginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  registerLink: {
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  registerLinkText: {
+    fontSize: 13.5,
+    color: '#94A3B8',
+  },
+  registerHighlight: {
+    color: '#0066FF',
+    fontWeight: '700',
+  },
+  footerContainer: {
+    alignItems: 'center',
+    marginTop: 28,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
   },
 });
 

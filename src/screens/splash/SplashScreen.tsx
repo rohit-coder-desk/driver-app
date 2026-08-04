@@ -1,13 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, Animated, ActivityIndicator } from 'react-native';
-import { COLORS } from '../../constants/colors';
+import { View, Text, Image, StyleSheet, Animated, ActivityIndicator, StatusBar } from 'react-native';
 
 export const SplashScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
-    // Elegant scale and fade animation for logo
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -24,8 +22,10 @@ export const SplashScreen = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#061A3A" />
+
       <Animated.View style={[styles.logoWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        {/* Logo container */}
+        {/* Logo Container */}
         <View style={styles.iconContainer}>
           <Image
             source={require('../../assets/images/logo.png')}
@@ -43,7 +43,10 @@ export const SplashScreen = () => {
         </View>
       </Animated.View>
 
-      <ActivityIndicator size="small" color="#2563eb" style={styles.spinner} />
+      <View style={styles.footerBox}>
+        <ActivityIndicator size="small" color="#0066FF" style={styles.spinner} />
+        <Text style={styles.footerVersion}>Dispatcher Logistics v1.0.0</Text>
+      </View>
     </View>
   );
 };
@@ -51,7 +54,7 @@ export const SplashScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#061A3A',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -61,49 +64,56 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconContainer: {
-    width: 68,
-    height: 68,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 8,
+    width: 76,
+    height: 76,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
   },
   logoImage: {
     width: '100%',
     height: '100%',
   },
   textContainer: {
-    marginLeft: 16,
+    marginLeft: 18,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#FFFFFF',
     letterSpacing: -0.5,
   },
   blueText: {
-    color: '#2563eb',
+    color: '#0066FF',
   },
   subtitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    letterSpacing: 2,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0066FF',
+    letterSpacing: 2.2,
     textTransform: 'uppercase',
-    marginTop: 2,
+    marginTop: 3,
+  },
+  footerBox: {
+    position: 'absolute',
+    bottom: 50,
+    alignItems: 'center',
   },
   spinner: {
-    position: 'absolute',
-    bottom: 60,
+    marginBottom: 12,
+  },
+  footerVersion: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 

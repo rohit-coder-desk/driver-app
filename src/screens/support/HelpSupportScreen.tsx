@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Platform, StatusBar, Linking, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
+import { ROUTES } from '../../constants/routes';
 
 export const HelpSupportScreen = () => {
   const navigation = useNavigation<any>();
@@ -13,7 +14,17 @@ export const HelpSupportScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate(ROUTES.HOME);
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & Support</Text>
