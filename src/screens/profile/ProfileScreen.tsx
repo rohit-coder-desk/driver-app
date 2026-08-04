@@ -19,6 +19,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
 import { CustomDriverModal } from '../../components/common/CustomDriverModal';
+import { DatePickerModal } from '../../components/common/DatePickerModal';
 import { ROUTES } from '../../constants/routes';
 
 interface SelectedFile {
@@ -92,6 +93,7 @@ export const ProfileScreen = () => {
   const [vehicleColor, setVehicleColor] = useState('');
   const [drivingLicenceNumber, setDrivingLicenceNumber] = useState('');
   const [drivingLicenceExpiry, setDrivingLicenceExpiry] = useState('');
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -457,15 +459,27 @@ export const ProfileScreen = () => {
 
           <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Licence Details</Text>
 
-          {inputFields.slice(4).map((field) => (
-            <InputField
-              key={field.key}
-              label={field.label}
-              placeholder={field.placeholder}
-              value={field.value}
-              onChangeText={field.onChangeText}
-            />
-          ))}
+          <InputField
+            label="Driving Licence Number"
+            placeholder="e.g. DL-123456789"
+            value={drivingLicenceNumber}
+            onChangeText={setDrivingLicenceNumber}
+          />
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setDatePickerVisible(true)}
+          >
+            <View pointerEvents="none">
+              <InputField
+                label="Driving Licence Expiry"
+                placeholder="Select Expiry Date (YYYY-MM-DD)"
+                value={drivingLicenceExpiry}
+                onChangeText={() => { }}
+                editable={false}
+              />
+            </View>
+          </TouchableOpacity>
 
           {/* Submit Button */}
           <TouchableOpacity
@@ -486,6 +500,13 @@ export const ProfileScreen = () => {
         message={modalConfig.message}
         primaryButtonText="OK"
         onPrimaryAction={hideModal}
+      />
+
+      <DatePickerModal
+        visible={datePickerVisible}
+        value={drivingLicenceExpiry}
+        onSelect={(dateStr) => setDrivingLicenceExpiry(dateStr)}
+        onClose={() => setDatePickerVisible(false)}
       />
     </SafeAreaView>
   );
@@ -510,7 +531,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backButton: {
-    marginTop:40,
+    marginTop: 40,
     width: 36,
     height: 36,
     borderRadius: 18,

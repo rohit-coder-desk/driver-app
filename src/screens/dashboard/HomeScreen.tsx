@@ -33,7 +33,7 @@ import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
-import { HomeIcon, ProfileIcon, EditIcon, OrdersIcon, DocumentsIcon, SupportIcon, EarningsIcon, LogoutIcon } from '../../components/common/Icons';
+import { HomeIcon, ProfileIcon, EditIcon, OrdersIcon, DocumentsIcon, SupportIcon, EarningsIcon, LogoutIcon, LockShieldIcon } from '../../components/common/Icons';
 import { CustomDriverModal, DriverModalType } from '../../components/common/CustomDriverModal';
 import { API_BASE_URL } from '../../config/env';
 
@@ -848,8 +848,10 @@ export const HomeScreen = () => {
   };
 
   const getFullUrl = (path: string) => {
+    if (!path) return '';
     if (path.startsWith('http')) return path;
-    return `${API_BASE_URL}${path}`;
+    const cleanPath = path.replace(/\\/g, '/');
+    return `${API_BASE_URL}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   const navigationRef = useRef<any>(null);
@@ -861,117 +863,135 @@ export const HomeScreen = () => {
     driver?.authorizationStatus !== 'approved' &&
     (!driver?.drivingLicencePhoto || !driver?.rcPhoto || !driver?.insurancePhoto || !driver?.avatarPhoto);
 
+  const isApprovedAndReady = driver?.authorizationStatus === 'approved';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !isApprovedAndReady && { backgroundColor: '#061A3A' }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       <Loader visible={loading} message="Processing..." />
 
-      {/* Full Screen Google Map (Always Active) */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={StyleSheet.absoluteFill}
-        initialRegion={region}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        onUserLocationChange={(event) => {
-          const coords = event.nativeEvent?.coordinate;
-          if (coords?.latitude && coords?.longitude) {
-            syncDriverLocation(coords.latitude, coords.longitude);
-          }
-        }}
-      >
-        {location && (
-          <Marker
-            coordinate={location}
-            title={driver?.name || 'Driver'}
-            description={isOnline ? 'Online - Active' : 'Offline'}
-            zIndex={99}
-          >
-            <View style={styles.driverMarkerContainer}>
-              <View style={styles.driverMarkerPulse} />
-              <View style={styles.driverMarkerBadge}>
-                <Text style={styles.driverMarkerEmoji}>🚘</Text>
+      {/* Full Screen Google Map (Active only when Driver is Approved by Admin) */}
+      {isApprovedAndReady ? (
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={StyleSheet.absoluteFill}
+          initialRegion={region}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          onUserLocationChange={(event) => {
+            const coords = event.nativeEvent?.coordinate;
+            if (coords?.latitude && coords?.longitude) {
+              syncDriverLocation(coords.latitude, coords.longitude);
+            }
+          }}
+        >
+          {location && (
+            <Marker
+              coordinate={location}
+              title={driver?.name || 'Driver'}
+              description={isOnline ? 'Online - Active' : 'Offline'}
+              zIndex={99}
+            >
+              <View style={styles.driverMarkerContainer}>
+                <View style={styles.driverMarkerPulse} />
+                <View style={styles.driverMarkerBadge}>
+                  <Text style={styles.driverMarkerEmoji}>🚘</Text>
+                </View>
               </View>
-            </View>
-          </Marker>
-        )}
+            </Marker>
+          )}
 
-        {/* Active Order Pickup & Delivery Markers + Route Polyline */}
-        {activeOrder && (() => {
-          const pLat = Number(activeOrder.pickup?.lat || 0);
-          const pLng = Number(activeOrder.pickup?.lng || 0);
-          const dLat = Number(activeOrder.dropoff?.lat || 0);
-          const dLng = Number(activeOrder.dropoff?.lng || 0);
+          {/* Active Order Pickup & Delivery Markers + Route Polyline */}
+          {activeOrder && (() => {
+            const pLat = Number(activeOrder.pickup?.lat || 0);
+            const pLng = Number(activeOrder.pickup?.lng || 0);
+            const dLat = Number(activeOrder.dropoff?.lat || 0);
+            const dLng = Number(activeOrder.dropoff?.lng || 0);
 
-          const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
-          const targetLat = Number(isPickedUp ? dLat : pLat);
-          const targetLng = Number(isPickedUp ? dLng : pLng);
-          const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
+            const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+            const targetLat = Number(isPickedUp ? dLat : pLat);
+            const targetLng = Number(isPickedUp ? dLng : pLng);
+            const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
 
-          const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
-          const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
+            const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
+            const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
 
-          const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
-            ? routeCoordinates
-            : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
-              ? cachedRoute
-              : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
-                ? routeCoordinates
-                : (targetLat !== 0 && targetLng !== 0)
-                  ? [
-                    { latitude: startLoc.latitude, longitude: startLoc.longitude },
-                    { latitude: targetLat, longitude: targetLng }
-                  ]
-                  : [];
+            const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
+              ? routeCoordinates
+              : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
+                ? cachedRoute
+                : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
+                  ? routeCoordinates
+                  : (targetLat !== 0 && targetLng !== 0)
+                    ? [
+                      { latitude: startLoc.latitude, longitude: startLoc.longitude },
+                      { latitude: targetLat, longitude: targetLng }
+                    ]
+                    : [];
 
-          return (
-            <>
-              {/* Pickup Marker */}
-              {pLat !== 0 && pLng !== 0 && (
-                <Marker
-                  coordinate={{ latitude: pLat, longitude: pLng }}
-                  title="Pickup Location"
-                  description={activeOrder.pickup?.address || 'Pickup'}
-                  zIndex={999}
-                >
-                  <View style={styles.pickupMarkerBadge}>
-                    <Text style={styles.markerBadgeEmoji}>🏪</Text>
-                  </View>
-                </Marker>
-              )}
+            return (
+              <>
+                {/* Pickup Marker */}
+                {pLat !== 0 && pLng !== 0 && (
+                  <Marker
+                    coordinate={{ latitude: pLat, longitude: pLng }}
+                    title="Pickup Location"
+                    description={activeOrder.pickup?.address || 'Pickup'}
+                    zIndex={999}
+                  >
+                    <View style={styles.pickupMarkerBadge}>
+                      <Text style={styles.markerBadgeEmoji}>🏪</Text>
+                    </View>
+                  </Marker>
+                )}
 
-              {/* Delivery Marker */}
-              {dLat !== 0 && dLng !== 0 && (
-                <Marker
-                  coordinate={{ latitude: dLat, longitude: dLng }}
-                  title="Delivery Location"
-                  description={activeOrder.dropoff?.address || 'Delivery'}
-                  zIndex={999}
-                >
-                  <View style={styles.deliveryMarkerBadge}>
-                    <Text style={styles.markerBadgeEmoji}>🏁</Text>
-                  </View>
-                </Marker>
-              )}
+                {/* Delivery Marker */}
+                {dLat !== 0 && dLng !== 0 && (
+                  <Marker
+                    coordinate={{ latitude: dLat, longitude: dLng }}
+                    title="Delivery Location"
+                    description={activeOrder.dropoff?.address || 'Delivery'}
+                    zIndex={999}
+                  >
+                    <View style={styles.deliveryMarkerBadge}>
+                      <Text style={styles.markerBadgeEmoji}>🏁</Text>
+                    </View>
+                  </Marker>
+                )}
 
-              {/* Polyline */}
-              {polylinePoints.length >= 2 && (
-                <Polyline
-                  key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
-                  coordinates={polylinePoints}
-                  strokeColor="#2563eb"
-                  strokeWidth={7}
-                  lineCap="round"
-                  lineJoin="round"
-                  geodesic={true}
-                  zIndex={9999}
-                />
-              )}
-            </>
-          );
-        })()}
-      </MapView>
+                {/* Polyline */}
+                {polylinePoints.length >= 2 && (
+                  <Polyline
+                    key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
+                    coordinates={polylinePoints}
+                    strokeColor="#2563eb"
+                    strokeWidth={7}
+                    lineCap="round"
+                    lineJoin="round"
+                    geodesic={true}
+                    zIndex={9999}
+                  />
+                )}
+              </>
+            );
+          })()}
+        </MapView>
+      ) : (
+        <View style={styles.unverifiedMapPlaceholder}>
+          <View style={styles.unverifiedGlowCircle}>
+            <LockShieldIcon size={46} color="#60A5FA" />
+          </View>
+          <Text style={styles.unverifiedTitle}>Map Navigation Locked</Text>
+          <Text style={styles.unverifiedSubtitle}>
+            {driver?.authorizationStatus === 'rejected'
+              ? 'Your document submission was rejected. Please upload the requested documents to unlock GPS map navigation.'
+              : driver?.authorizationStatus === 'pending' && !isProfileIncomplete
+                ? 'Your documents are under review. Map navigation will automatically activate once approved by admin.'
+                : 'Complete your profile and upload required documents to unlock GPS map navigation & receive ride offers.'}
+          </Text>
+        </View>
+      )}
 
       {/* Top Header Card matching reference image */}
       <View style={styles.floatingHeaderCard}>
@@ -1061,11 +1081,37 @@ export const HomeScreen = () => {
       ) : driver?.authorizationStatus === 'rejected' ? (
         <TouchableOpacity
           style={styles.rejectedCard}
-          onPress={() => navigation.navigate(ROUTES.PROFILE)}
+          onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
-          <Text style={styles.rejectedTitle}> Documents Rejected</Text>
-          <Text style={styles.rejectedSubtitle}>Admin rejected your submission. Tap to review and re-upload.</Text>
+          <Text style={styles.rejectedTitle}>⚠️ Documents Rejected</Text>
+          <Text style={styles.rejectedSubtitle}>
+            {(() => {
+              const docStatuses = driver?.documentStatuses as Record<string, any> | undefined;
+              const rejectedList: string[] = [];
+              const docKeys = [
+                { key: 'avatarPhoto', label: 'Profile Photo' },
+                { key: 'identityCardPhoto', label: 'Aadhaar Front' },
+                { key: 'identityCardBackPhoto', label: 'Aadhaar Back' },
+                { key: 'drivingLicencePhoto', label: 'License Front' },
+                { key: 'drivingLicenceBackPhoto', label: 'License Back' },
+                { key: 'rcPhoto', label: 'RC Document' },
+                { key: 'insurancePhoto', label: 'Vehicle Insurance' },
+                { key: 'vehiclePhoto', label: 'Vehicle Photo' },
+              ];
+              docKeys.forEach((item) => {
+                const raw = docStatuses?.[item.key];
+                const st = typeof raw === 'object' ? raw?.status : raw;
+                if (st === 'rejected') {
+                  rejectedList.push(item.label);
+                }
+              });
+              if (rejectedList.length > 0) {
+                return `Rejected: ${rejectedList.join(', ')}. Tap here to re-upload.`;
+              }
+              return 'Admin rejected your document submission. Tap here to review and re-upload.';
+            })()}
+          </Text>
         </TouchableOpacity>
       ) : isOnline ? (
         /* When approved and active online, show the status pill */
@@ -1182,7 +1228,6 @@ export const HomeScreen = () => {
                   onPress={() => setDrawerOpen(false)}
                   activeOpacity={0.75}
                 >
-                  <HomeIcon color="#0066FF" size={20} />
                   <Text style={[styles.drawerItemText, styles.activeDrawerItemText]}>Home</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1195,7 +1240,6 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <ProfileIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>My Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1208,7 +1252,6 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <EditIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Edit Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1221,7 +1264,6 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <OrdersIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>My Orders</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1234,7 +1276,6 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <DocumentsIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Documents</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1247,7 +1288,6 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <SupportIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Help & Support</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1260,7 +1300,6 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
-                  <EarningsIcon color="#94A3B8" size={20} />
                   <Text style={styles.drawerItemText}>Earnings</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1277,7 +1316,6 @@ export const HomeScreen = () => {
                 }}
                 activeOpacity={0.8}
               >
-                <LogoutIcon color="#ef4444" size={18} />
                 <Text style={styles.logoutBtnText}>Logout</Text>
               </TouchableOpacity>
             </View>
@@ -1824,7 +1862,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '600',
     color: '#94A3B8',
-    marginLeft: 14,
+    marginLeft: 4,
   },
   activeDrawerItemText: {
     color: '#FFFFFF',
@@ -1966,6 +2004,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginVertical: 1,
+  },
+  unverifiedMapPlaceholder: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#061A3A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 120,
+    paddingBottom: 140,
+    zIndex: 1,
+  },
+  unverifiedGlowCircle: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: 'rgba(15, 34, 70, 0.9)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(96, 165, 250, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  unverifiedShieldIcon: {
+    fontSize: 42,
+  },
+  unverifiedTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  unverifiedSubtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 300,
   },
 });
 export default HomeScreen;

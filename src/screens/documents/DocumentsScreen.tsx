@@ -90,7 +90,8 @@ export const DocumentsScreen = () => {
   const getFullUrl = (filePath?: string | null) => {
     if (!filePath) return '';
     if (filePath.startsWith('http')) return filePath;
-    return `${API_BASE_URL}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+    const cleanPath = filePath.replace(/\\/g, '/');
+    return `${API_BASE_URL}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
   const documentItems = useMemo(
@@ -103,8 +104,22 @@ export const DocumentsScreen = () => {
     [driver, selectedFiles]
   );
 
-  const hasDocuments = documentItems.some((item) => !!item.uri || !!item.selectedFile);
   const hasNewUploads = Object.values(selectedFiles).some(Boolean);
+  const authStatus = driver?.authorizationStatus; // 'approved' | 'pending' | 'rejected'
+  const rejectionReason = driver?.authorizationDescription;
+
+  const rejectedDocNames = useMemo(() => {
+    const docStatuses = driver?.documentStatuses as Record<string, any> | undefined;
+    const list: string[] = [];
+    documentKeys.forEach((item) => {
+      const raw = docStatuses?.[item.key];
+      const st = typeof raw === 'object' ? raw?.status : raw;
+      if (st === 'rejected') {
+        list.push(item.label);
+      }
+    });
+    return list;
+  }, [driver]);
 
   const openDocumentPicker = useCallback((key: string, useCamera: boolean) => {
     const options = { mediaType: 'photo' as const, quality: 0.8 };
@@ -191,7 +206,7 @@ export const DocumentsScreen = () => {
     try {
       await DriverService.uploadDocuments(formData);
       await refreshProfile();
-      showModal('accept', 'Success', 'Documents uploaded successfully. Admin will review them shortly.');
+      showModal('accept', 'Success', 'Documents submitted successfully. Admin will review them shortly.');
       setSelectedFiles((prev) => {
         const reset: Record<string, SelectedFile | null> = {};
         Object.keys(prev).forEach((key) => {
@@ -219,29 +234,163 @@ export const DocumentsScreen = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Upload and manage your documents</Text>
         <Text style={styles.description}>
-          Keep your driver licence, insurance, and registration documents up to date. This section will show all approved and pending documents.
+          Keep your driver licence, insurance, and registration documents up to date. This section shows the status of each uploaded document.
         </Text>
+
+        {/* Status Banner */}
+        {authStatus === 'rejected' && (
+          <View style={styles.rejectedBanner}>
+            <Text style={styles.rejectedBannerTitle}>⚠️ Document Verification Rejected</Text>
+            <Text style={styles.rejectedBannerText}>
+              {rejectedDocNames.length > 0
+                ? `Rejected document(s): ${rejectedDocNames.join(', ')}.\n${rejectionReason ? `Reason: ${rejectionReason}` : 'Please re-upload the highlighted document(s) below.'}`
+                : rejectionReason ? `Reason: ${rejectionReason}` : 'One or more documents were rejected. Please re-upload the highlighted document(s) below.'}
+            </Text>
+          </View>
+        )}
+        {authStatus === 'pending' && (
+          <View style={styles.pendingBanner}>
+            <Text style={styles.pendingBannerTitle}>⏳ Verification Under Review</Text>
+            <Text style={styles.pendingBannerText}>
+              Your documents have been submitted and are currently being reviewed by admin.
+            </Text>
+          </View>
+        )}
+        {authStatus === 'approved' && (
+          <View style={styles.approvedBanner}>
+            <Text style={styles.approvedBannerTitle}>✓ Verification Approved</Text>
+            <Text style={styles.approvedBannerText}>
+              All your documents have been verified and approved by admin.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.documentsGrid}>
           {documentItems.map((item) => {
+            const isSelected = !!item.selectedFile;
+            const isUploaded = !!item.uri;
             const displayUri = item.selectedFile?.uri || item.uri;
-            const uploaded = !!item.uri;
+
+            const docStatuses = driver?.documentStatuses as Record<string, { status: string; reason?: string } | string> | undefined;
+            const rawDocObj = docStatuses?.[item.key];
+            const docStatus = typeof rawDocObj === 'object' ? rawDocObj?.status : rawDocObj;
+            const docReason = typeof rawDocObj === 'object' ? rawDocObj?.reason : undefined;
+
+            // Determine status state for each card
+            let cardState: 'selected' | 'approved' | 'pending' | 'rejected' | 'empty' = 'empty';
+            if (isSelected) {
+              cardState = 'selected';
+            } else if (isUploaded) {
+              if (docStatus === 'rejected') {
+                cardState = 'rejected';
+              } else if (docStatus === 'pending') {
+                cardState = 'pending';
+              } else if (docStatus === 'approved') {
+                cardState = 'approved';
+              } else {
+                // Default to approved if uploaded, unless overall status is pending
+                cardState = authStatus === 'pending' ? 'pending' : 'approved';
+              }
+            }
+
+            const itemRejectionReason = docReason || rejectionReason;
+
             return (
-              <View key={item.key} style={styles.documentCard}>
+              <View key={item.key} style={[styles.documentCard, cardState === 'rejected' && styles.documentCardRejected]}>
                 <Text style={styles.documentLabel}>{item.label}</Text>
+
                 {displayUri ? (
-                  <Image source={{ uri: displayUri }} style={styles.documentImage} resizeMode="cover" />
+                  <View style={[
+                    styles.imageWrapper,
+                    cardState === 'rejected' && styles.imageWrapperRejected,
+                    cardState === 'approved' && styles.imageWrapperApproved,
+                    cardState === 'pending' && styles.imageWrapperPending,
+                  ]}>
+                    <Image source={{ uri: displayUri }} style={styles.documentImage} resizeMode="cover" />
+                    
+                    {/* Badge Overlay */}
+                    {cardState === 'rejected' && (
+                      <View style={[styles.badgeOverlay, styles.badgeRejected]}>
+                        <Text style={styles.badgeText}>✕ Rejected</Text>
+                      </View>
+                    )}
+                    {cardState === 'approved' && (
+                      <View style={[styles.badgeOverlay, styles.badgeApproved]}>
+                        <Text style={styles.badgeText}>✓ Approved</Text>
+                      </View>
+                    )}
+                    {cardState === 'pending' && (
+                      <View style={[styles.badgeOverlay, styles.badgePending]}>
+                        <Text style={styles.badgeText}>⏳ Under Review</Text>
+                      </View>
+                    )}
+                    {cardState === 'selected' && (
+                      <View style={[styles.badgeOverlay, styles.badgeSelected]}>
+                        <Text style={styles.badgeText}>✏️ Selected</Text>
+                      </View>
+                    )}
+                  </View>
                 ) : (
                   <View style={styles.emptyDocument}>
                     <Text style={styles.emptyText}>No file uploaded</Text>
                   </View>
                 )}
-                <Text style={[styles.statusText, uploaded ? styles.statusUploaded : styles.statusPending]}>
-                  {item.selectedFile ? 'Selected to upload' : uploaded ? 'Uploaded' : 'Not uploaded'}
+
+                {/* Rejection Reason Notice below image if rejected */}
+                {cardState === 'rejected' && (
+                  <View style={styles.rejectionReasonBox}>
+                    <Text style={styles.rejectionReasonText} numberOfLines={2}>
+                      {itemRejectionReason ? `Reason: ${itemRejectionReason}` : 'Document rejected by admin'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Status Text Indicator */}
+                <Text style={[
+                  styles.statusText,
+                  cardState === 'approved' && styles.statusApprovedText,
+                  cardState === 'pending' && styles.statusPendingText,
+                  cardState === 'rejected' && styles.statusRejectedText,
+                  cardState === 'selected' && styles.statusSelectedText,
+                  cardState === 'empty' && styles.statusEmptyText,
+                ]}>
+                  {cardState === 'selected' && 'Selected to upload'}
+                  {cardState === 'approved' && 'Approved'}
+                  {cardState === 'pending' && 'Under Review'}
+                  {cardState === 'rejected' && 'Rejected'}
+                  {cardState === 'empty' && 'Not uploaded'}
                 </Text>
-                <TouchableOpacity style={styles.selectButton} onPress={() => selectDocument(item.key)} activeOpacity={0.7}>
-                  <Text style={styles.selectButtonText}>{item.selectedFile ? 'Replace' : 'Upload'}</Text>
-                </TouchableOpacity>
+
+                {/* Action Buttons */}
+                {cardState === 'approved' && (
+                  <View style={[styles.statusPillBtn, styles.statusPillApproved]}>
+                    <Text style={styles.statusPillTextApproved}>Approved</Text>
+                  </View>
+                )}
+
+                {cardState === 'pending' && (
+                  <View style={[styles.statusPillBtn, styles.statusPillPending]}>
+                    <Text style={styles.statusPillTextPending}>Under Review</Text>
+                  </View>
+                )}
+
+                {cardState === 'rejected' && (
+                  <TouchableOpacity style={[styles.selectButton, styles.uploadAgainButton]} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
+                    <Text style={styles.selectButtonText}>Upload Again</Text>
+                  </TouchableOpacity>
+                )}
+
+                {cardState === 'selected' && (
+                  <TouchableOpacity style={styles.selectButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
+                    <Text style={styles.selectButtonText}>Replace</Text>
+                  </TouchableOpacity>
+                )}
+
+                {cardState === 'empty' && (
+                  <TouchableOpacity style={styles.selectButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
+                    <Text style={styles.selectButtonText}>Upload</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -317,7 +466,64 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 20,
     color: '#94A3B8',
+    marginBottom: 16,
+  },
+  rejectedBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 20,
+  },
+  rejectedBannerTitle: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  rejectedBannerText: {
+    color: '#FCA5A5',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  pendingBanner: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+  },
+  pendingBannerTitle: {
+    color: '#F59E0B',
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  pendingBannerText: {
+    color: '#FDE68A',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  approvedBanner: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+  },
+  approvedBannerTitle: {
+    color: '#10B981',
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  approvedBannerText: {
+    color: '#A7F3D0',
+    fontSize: 13,
+    lineHeight: 18,
   },
   documentsGrid: {
     flexDirection: 'row',
@@ -330,7 +536,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    padding: 14,
+    padding: 12,
     marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
@@ -338,17 +544,65 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  documentCardRejected: {
+    borderColor: '#EF4444',
+    backgroundColor: '#121F38',
+  },
   documentLabel: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 10,
   },
-  documentImage: {
+  imageWrapper: {
+    position: 'relative',
     width: '100%',
     height: 110,
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  imageWrapperRejected: {
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  imageWrapperApproved: {
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  imageWrapperPending: {
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+  },
+  documentImage: {
+    width: '100%',
+    height: '100%',
     backgroundColor: '#0D2A54',
+  },
+  badgeOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    zIndex: 10,
+  },
+  badgeRejected: {
+    backgroundColor: '#DC2626',
+  },
+  badgeApproved: {
+    backgroundColor: '#059669',
+  },
+  badgePending: {
+    backgroundColor: '#D97706',
+  },
+  badgeSelected: {
+    backgroundColor: '#0066FF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   emptyDocument: {
     width: '100%',
@@ -365,23 +619,75 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
   },
+  rejectionReasonBox: {
+    marginTop: 8,
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  rejectionReasonText: {
+    color: '#FCA5A5',
+    fontSize: 11,
+    fontWeight: '500',
+  },
   statusText: {
     marginTop: 10,
     fontSize: 12,
     fontWeight: '700',
   },
-  statusUploaded: {
-    color: '#22C55E',
+  statusApprovedText: {
+    color: '#10B981',
   },
-  statusPending: {
+  statusPendingText: {
+    color: '#F59E0B',
+  },
+  statusRejectedText: {
+    color: '#EF4444',
+  },
+  statusSelectedText: {
+    color: '#0066FF',
+  },
+  statusEmptyText: {
     color: '#94A3B8',
   },
+  statusPillBtn: {
+    marginTop: 10,
+    borderRadius: 12,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusPillApproved: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  statusPillPending: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  statusPillTextApproved: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusPillTextPending: {
+    color: '#F59E0B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   selectButton: {
-    marginTop: 12,
+    marginTop: 10,
     borderRadius: 12,
     backgroundColor: '#0066FF',
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  uploadAgainButton: {
+    backgroundColor: '#EF4444',
   },
   selectButtonText: {
     color: '#FFFFFF',

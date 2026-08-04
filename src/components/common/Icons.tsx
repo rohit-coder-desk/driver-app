@@ -68,6 +68,44 @@ export const LogoutIcon: React.FC<IconProps> = ({ color = '#ef4444', size = 20 }
   </View>
 );
 
+export const LockShieldIcon: React.FC<{ size?: number; color?: string }> = ({ size = 48, color = '#3B82F6' }) => (
+  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+    <View style={{
+      width: size * 0.75,
+      height: size * 0.85,
+      borderWidth: 2.5,
+      borderColor: color,
+      borderTopLeftRadius: size * 0.35,
+      borderTopRightRadius: size * 0.35,
+      borderBottomLeftRadius: size * 0.45,
+      borderBottomRightRadius: size * 0.45,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}>
+      <View style={{
+        width: size * 0.28,
+        height: size * 0.22,
+        borderWidth: 2,
+        borderColor: color,
+        borderTopLeftRadius: size * 0.14,
+        borderTopRightRadius: size * 0.14,
+        borderBottomWidth: 0,
+        marginBottom: -1,
+      }} />
+      <View style={{
+        width: size * 0.36,
+        height: size * 0.26,
+        backgroundColor: color,
+        borderRadius: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#061A3A' }} />
+      </View>
+    </View>
+  </View>
+);
+
 const styles = StyleSheet.create({
   iconBase: {
     justifyContent: 'center',

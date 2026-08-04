@@ -12,8 +12,9 @@ export const driverApi = {
   uploadDocuments: (formData: FormData) => {
     return apiClient.post('/api/drivers/me/documents', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Accept': 'application/json',
       },
+      transformRequest: (data) => data,
     });
   },
 

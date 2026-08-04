@@ -32,6 +32,8 @@ export interface Driver {
   balance: number;
   isRegistrationVerified: boolean;
   authorizationStatus: 'pending' | 'approved' | 'rejected';
+  authorizationDescription?: string | null;
+  documentStatuses?: Record<string, any> | null;
   vehicleModel?: string;
   vehiclePlate?: string;
   vehicleColor?: string;

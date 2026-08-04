@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (username: string, password?: string) => {
     try {
       const data = await AuthService.login({ username, password });
-      
+
       // If driver phone isn't verified yet, API route might return isRegistrationVerified = false
       if (data.isRegistrationVerified === false || data.driver?.isRegistrationVerified === false) {
         setUnverifiedPhone(data.driver?.phone || username);
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       await AuthService.saveToken(data.token);
       await AuthService.saveDriver(data.driver);
-      
+
       setToken(data.token);
       setDriver(data.driver);
       setUnverifiedPhone(null);
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const verifyOtp = async (phone: string, otp: string) => {
     const response = await AuthService.verifyOtp({ phone, otp });
-    
+
     // Save state on successful verification
     await AuthService.saveToken(response.token);
     await AuthService.saveDriver(response.driver);

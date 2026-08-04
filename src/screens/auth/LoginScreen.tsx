@@ -14,17 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
-
-// Custom Graphical Eye Icon Component
-const EyeIcon = ({ visible }: { visible: boolean }) => {
-  return (
-    <View style={styles.eyeIconContainer}>
-      <View style={styles.eyeOuter} />
-      <View style={styles.eyeInner} />
-      {!visible && <View style={styles.eyeSlash} />}
-    </View>
-  );
-};
+import { EyeIcon } from '../../components/common/EyeIcon';
 
 export const LoginScreen = () => {
   const [username, setUsername] = useState('');
@@ -159,7 +149,7 @@ export const LoginScreen = () => {
             activeOpacity={0.8}
           >
             <Text style={styles.registerLinkText}>
-              Don't have an account? <Text style={styles.registerHighlight}>Register as Driver</Text>
+              Don't have an account? <Text style={styles.registerHighlight}>Register</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -272,33 +262,10 @@ const styles = StyleSheet.create({
   },
   eyeBtn: {
     padding: 8,
-  },
-  eyeIconContainer: {
-    width: 22,
-    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  eyeOuter: {
-    width: 18,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1.8,
-    borderColor: '#94A3B8',
-  },
-  eyeInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#94A3B8',
-    position: 'absolute',
-  },
-  eyeSlash: {
-    position: 'absolute',
-    width: 20,
-    height: 2,
-    backgroundColor: '#EF4444',
-    transform: [{ rotate: '-45deg' }],
+    minWidth: 44,
+    minHeight: 44,
   },
   optionsRow: {
     flexDirection: 'row',

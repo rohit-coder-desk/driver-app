@@ -10,23 +10,14 @@ import {
   Platform,
   ScrollView,
   Modal,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
-
-// Custom Graphical Eye Icon Component with Slash toggle
-const EyeIcon = ({ visible }: { visible: boolean }) => {
-  return (
-    <View style={styles.eyeIconContainer}>
-      <View style={styles.eyeOuter} />
-      <View style={styles.eyeInner} />
-      {!visible && <View style={styles.eyeSlash} />}
-    </View>
-  );
-};
+import { EyeIcon } from '../../components/common/EyeIcon';
 
 import { ALL_COUNTRY_CODES, CountryCode } from '../../constants/countryCodes';
 
@@ -142,6 +133,13 @@ export const RegisterScreen = () => {
 
         {/* Screen Title */}
         <View style={styles.header}>
+          <View style={styles.logoBadge}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={styles.title}>Register Driver</Text>
           <Text style={styles.subtitle}>Join CDX Last Mile Fleet</Text>
         </View>
@@ -317,10 +315,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
+    alignItems: 'center',
     marginBottom: 24,
   },
+  logoBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  logoImage: {
+    width: 58,
+    height: 58,
+  },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 6,
@@ -329,6 +346,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#94A3B8',
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#0B2246',
