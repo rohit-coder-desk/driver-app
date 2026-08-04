@@ -863,6 +863,7 @@ export const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       <Loader visible={loading} message="Processing..." />
 
       {/* Full Screen Google Map (Always Active) */}
@@ -1291,6 +1292,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    paddingTop: 0,
   },
   offlineContainer: {
     flex: 1,
@@ -1384,7 +1386,7 @@ const styles = StyleSheet.create({
   },
   floatingHeaderCard: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 48 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
+    top: Platform.OS === 'ios' ? 48 : (StatusBar.currentHeight || 24) + 8,
     left: 14,
     right: 14,
     backgroundColor: '#0B2246',
