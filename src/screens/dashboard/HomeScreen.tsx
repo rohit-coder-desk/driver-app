@@ -60,6 +60,8 @@ export const HomeScreen = () => {
   const [reviewLoading, setReviewLoading] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
+  const lastPromptedExpiryRef = useRef<string | null>(null);
+  const shownSessionWarningStagesRef = useRef<Set<string>>(new Set());
 
   // Workflow Dialog Modal State
   const [driverModalConfig, setDriverModalConfig] = useState<{
@@ -760,7 +762,7 @@ export const HomeScreen = () => {
     showDriverModal('delivered', 'Delivery Completed! 🎉', 'You are back online and waiting for new offers.', 'Awesome');
   };
 
-  // Sync profile details on mount
+  // Sync profile details on mount & handle in-app expiry notifications
   useEffect(() => {
     const syncProfile = async () => {
       try {
@@ -771,6 +773,59 @@ export const HomeScreen = () => {
     };
     syncProfile();
   }, []);
+
+  // Show in-app modal notification when warning or blocking conditions exist
+  useEffect(() => {
+    if (!driver) return;
+    const expiryInfo = driver.docExpiryInfo;
+
+    // 1. Expired / Blocking condition: ALWAYS display blocking modal regardless of previous warning state
+    if (expiryInfo?.hasExpiredDocs || (expiryInfo && !expiryInfo.canGoOnline)) {
+      const expiredDoc = expiryInfo?.expiredDocuments?.[0] || expiryInfo?.rejectedDocuments?.[0];
+      const targetDocKey = expiredDoc?.key || 'rc';
+      const promptKey = `expired_${driver.id}_${driver.authorizationStatus}_${expiryInfo.onlineBlockReason}`;
+
+      if (lastPromptedExpiryRef.current !== promptKey) {
+        lastPromptedExpiryRef.current = promptKey;
+        showDriverModal(
+          'warning',
+          'Account Restriction',
+          expiryInfo.onlineBlockReason || driver.onlineBlockReason || 'Your document has expired. Please upload a renewed document.',
+          'Upload Document',
+          () => navigation.navigate(ROUTES.DOCUMENTS, { targetDocKey }),
+          'Close'
+        );
+      }
+    } 
+    // 2. Warning condition: Display warning modal ONLY IF this stage has NOT been shown in current app session
+    else if (expiryInfo?.warningBanner || driver.warningBanner) {
+      const warningDoc = expiryInfo?.warningDocuments?.[0];
+      const targetDocKey = warningDoc?.key || 'insurance';
+      const stage = warningDoc?.warningStage || `${warningDoc?.daysRemaining}_days`;
+      const sessionStageKey = `${targetDocKey}_${stage}`;
+
+      const promptKey = `warn_${driver.id}_${sessionStageKey}`;
+
+      if (!shownSessionWarningStagesRef.current.has(sessionStageKey) && lastPromptedExpiryRef.current !== promptKey) {
+        shownSessionWarningStagesRef.current.add(sessionStageKey);
+        lastPromptedExpiryRef.current = promptKey;
+
+        showDriverModal(
+          'info',
+          'Document Expiry Warning',
+          driver.warningBanner || expiryInfo?.warningBanner || 'Your document will expire soon. Please renew it to avoid account restrictions.',
+          'Update Now',
+          () => navigation.navigate(ROUTES.DOCUMENTS, { targetDocKey }),
+          'Dismiss'
+        );
+      }
+    } 
+    // 3. Document renewed or approved: Clear session warning state
+    else {
+      shownSessionWarningStagesRef.current.clear();
+      lastPromptedExpiryRef.current = null;
+    }
+  }, [driver?.id, driver?.authorizationStatus, driver?.docExpiryInfo, driver?.warningBanner, driver?.onlineBlockReason]);
 
   // Update Online Status
   useEffect(() => {
@@ -796,12 +851,21 @@ export const HomeScreen = () => {
     setLoading(true);
     try {
       if (value) {
-        // Refresh profile state from backend directly to ensure we have the absolute latest approval status
+        // Refresh profile state from backend directly to ensure we have the absolute latest approval & document expiry status
         const updatedProfile = await refreshProfile();
-        const currentAuthStatus = updatedProfile?.authorizationStatus || driver.authorizationStatus;
+        const expiryInfo = updatedProfile?.docExpiryInfo || driver.docExpiryInfo;
+        const canGoOnline = updatedProfile?.canGoOnline ?? expiryInfo?.canGoOnline ?? (updatedProfile?.authorizationStatus === 'approved');
 
-        if (currentAuthStatus !== 'approved') {
-          showDriverModal('warning', 'Verification Required', 'Your documents must be approved by our team before you can go online.', 'Understood');
+        if (!canGoOnline) {
+          const blockMessage = updatedProfile?.onlineBlockReason || expiryInfo?.onlineBlockReason || 'Your documents must be approved and not expired before you can go online.';
+          showDriverModal(
+            'warning',
+            'Account Restriction',
+            blockMessage,
+            'Upload Document',
+            () => navigation.navigate(ROUTES.DOCUMENTS),
+            'Close'
+          );
           setIsOnline(false);
           return;
         }
@@ -1085,6 +1149,24 @@ export const HomeScreen = () => {
         </View>
       </View>
 
+      {/* Floating Expiry Warning Banner (30, 15, 7, 3, 1, 0 days) */}
+      {(driver?.warningBanner || driver?.docExpiryInfo?.warningBanner) && (
+        <TouchableOpacity
+          style={styles.warningBannerContainer}
+          onPress={() => {
+            const warningDoc = driver?.docExpiryInfo?.warningDocuments?.[0];
+            const targetDocKey = warningDoc?.key || 'insurance';
+            navigation.navigate(ROUTES.DOCUMENTS, { targetDocKey });
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.warningBannerText}>
+            {driver?.warningBanner || driver?.docExpiryInfo?.warningBanner}
+          </Text>
+          <Text style={styles.warningBannerBtnText}>Update Now →</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Floating GPS Recenter Button - Only visible when Online */}
       {isOnline && (
         <TouchableOpacity
@@ -1107,6 +1189,19 @@ export const HomeScreen = () => {
           onCompleteDelivery={handleOpenPaymentModal}
           loading={actionLoading}
         />
+      ) : (driver?.docExpiryInfo?.hasExpiredDocs || (driver?.docExpiryInfo && !driver.docExpiryInfo.canGoOnline)) ? (
+        <TouchableOpacity
+          style={styles.rejectedCard}
+          onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.rejectedTitle}>
+            {driver?.docExpiryInfo?.hasExpiredDocs ? '❌ Document Expired' : '⚠️ Verification Required'}
+          </Text>
+          <Text style={styles.rejectedSubtitle}>
+            {driver?.onlineBlockReason || driver?.docExpiryInfo?.onlineBlockReason || 'Your account is restricted. Please upload a valid document.'}
+          </Text>
+        </TouchableOpacity>
       ) : isProfileIncomplete ? (
         <TouchableOpacity
           style={styles.completeProfileCard}
@@ -2139,6 +2234,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
     maxWidth: 280,
+  },
+  warningBannerContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 120 : 100,
+    left: 16,
+    right: 16,
+    zIndex: 99,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#B45309',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  warningBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+    marginRight: 8,
+  },
+  warningBannerBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#B45309',
+    backgroundColor: '#FDE68A',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
 });
 export default HomeScreen;

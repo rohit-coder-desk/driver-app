@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   PermissionsAndroid,
   Modal,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
@@ -36,12 +36,55 @@ const documentKeys = [
   { key: 'drivingLicenceBackPhoto', label: 'License Back' },
   { key: 'rcPhoto', label: 'RC Document' },
   { key: 'insurancePhoto', label: 'Vehicle Insurance' },
-  // { key: 'vehiclePhoto', label: 'Vehicle Photo' },
 ];
+
+const getPhotoKeyFromDocKey = (key?: string): string | null => {
+  if (!key) return null;
+  const cleanKey = key.toLowerCase();
+  if (cleanKey.includes('licence') || cleanKey.includes('license')) return 'drivingLicencePhoto';
+  if (cleanKey.includes('rc')) return 'rcPhoto';
+  if (cleanKey.includes('insurance')) return 'insurancePhoto';
+  if (cleanKey.includes('identity') || cleanKey.includes('aadhaar')) return 'identityCardPhoto';
+  if (cleanKey.includes('avatar')) return 'avatarPhoto';
+  if (cleanKey.includes('vehicle')) return 'vehiclePhoto';
+  return key;
+};
 
 export const DocumentsScreen = () => {
   const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const cardLayoutsRef = useRef<Record<string, number>>({});
+  const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
+
+  // Handle auto-scroll & card highlighting when navigating via targetDocKey
+  useEffect(() => {
+    const rawTarget = route.params?.targetDocKey || route.params?.highlightDocKey;
+    if (rawTarget) {
+      const mappedKey = getPhotoKeyFromDocKey(rawTarget);
+      if (mappedKey) {
+        setHighlightedKey(mappedKey);
+
+        const timerId = setTimeout(() => {
+          const yOffset = cardLayoutsRef.current[mappedKey];
+          if (yOffset !== undefined && scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ y: Math.max(0, yOffset - 30), animated: true });
+          }
+        }, 350);
+
+        const clearTimer = setTimeout(() => {
+          setHighlightedKey(null);
+        }, 5000);
+
+        return () => {
+          clearTimeout(timerId);
+          clearTimeout(clearTimer);
+        };
+      }
+    }
+  }, [route.params?.targetDocKey, route.params?.highlightDocKey]);
 
   console.log(`[STEP-16] [DOCUMENTS SCREEN RENDER] authStatus="${driver?.authorizationStatus}", docStatuses=`, JSON.stringify(driver?.documentStatuses || {}));
 
@@ -311,7 +354,7 @@ export const DocumentsScreen = () => {
         <Text style={styles.headerTitle}>Documents</Text>
         <View style={{ width: 44 }} />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Upload and manage your documents</Text>
         <Text style={styles.description}>
           Keep your driver licence, insurance, and registration documents up to date. This section shows the status of each uploaded document.
@@ -374,9 +417,20 @@ export const DocumentsScreen = () => {
             }
 
             const itemRejectionReason = docReason || rejectionReason;
+            const isHighlighted = highlightedKey === item.key;
 
             return (
-              <View key={item.key} style={[styles.documentCard, cardState === 'rejected' && styles.documentCardRejected]}>
+              <View
+                key={item.key}
+                onLayout={(e) => {
+                  cardLayoutsRef.current[item.key] = e.nativeEvent.layout.y;
+                }}
+                style={[
+                  styles.documentCard,
+                  cardState === 'rejected' && styles.documentCardRejected,
+                  isHighlighted && styles.highlightedCardRing,
+                ]}
+              >
                 <Text style={styles.documentLabel}>{item.label}</Text>
 
                 {displayUri ? (
@@ -994,6 +1048,16 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: '100%',
     height: '100%',
+  },
+  highlightedCardRing: {
+    borderColor: '#2563EB',
+    borderWidth: 2.5,
+    backgroundColor: '#EFF6FF',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });
 

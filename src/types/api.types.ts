@@ -56,6 +56,22 @@ export interface Driver {
   identityCardBackPhoto?: string | null;
   rcPhoto?: string | null;
   insurancePhoto?: string | null;
+  docExpiryInfo?: {
+    canGoOnline: boolean;
+    hasExpiredDocs: boolean;
+    expiredDocuments: Array<{ key: string; label: string; expiryDate?: string; daysRemaining?: number; reason?: string }>;
+    warningDocuments: Array<{ key: string; label: string; expiryDate?: string; daysRemaining?: number; warningStage?: string }>;
+    pendingDocuments: Array<{ key: string; label: string }>;
+    rejectedDocuments: Array<{ key: string; label: string; reason?: string }>;
+    missingDocuments: Array<{ key: string; label: string }>;
+    warningBanner?: string | null;
+    blockingCard?: string | null;
+    onlineBlockReason?: string | null;
+  } | null;
+  canGoOnline?: boolean;
+  warningBanner?: string | null;
+  blockingCard?: string | null;
+  onlineBlockReason?: string | null;
 }
 
 export interface VehicleType {
