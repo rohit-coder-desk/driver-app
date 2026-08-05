@@ -33,7 +33,7 @@ import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
-import { HomeIcon, ProfileIcon, EditIcon, OrdersIcon, DocumentsIcon, SupportIcon, EarningsIcon, LogoutIcon, LockShieldIcon } from '../../components/common/Icons';
+import { HomeIcon, ProfileIcon, EditIcon, OrdersIcon, DocumentsIcon, SupportIcon, EarningsIcon, LogoutIcon, LockShieldIcon, OfflineSignalIcon } from '../../components/common/Icons';
 import { CustomDriverModal, DriverModalType } from '../../components/common/CustomDriverModal';
 import { API_BASE_URL } from '../../config/env';
 
@@ -901,119 +901,128 @@ export const HomeScreen = () => {
     (!driver?.drivingLicencePhoto || !driver?.rcPhoto || !driver?.insurancePhoto || !driver?.avatarPhoto);
 
   const isApprovedAndReady = driver?.authorizationStatus === 'approved';
+  console.log(`[STEP-15] [HOME SCREEN RENDER] authStatus="${driver?.authorizationStatus}", isApprovedAndReady=${isApprovedAndReady}`);
 
   return (
     <View style={[styles.container, !isApprovedAndReady && { backgroundColor: '#061A3A' }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       <Loader visible={loading} message="Processing..." />
 
-      {/* Full Screen Google Map (Active only when Driver is Approved by Admin) */}
+      {/* Full Screen Google Map (Active only when Driver is Approved by Admin AND Online) */}
       {isApprovedAndReady ? (
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={StyleSheet.absoluteFill}
-          initialRegion={region}
-          showsUserLocation={true}
-          showsMyLocationButton={false}
-          onUserLocationChange={(event) => {
-            const coords = event.nativeEvent?.coordinate;
-            if (coords?.latitude && coords?.longitude) {
-              syncDriverLocation(coords.latitude, coords.longitude);
-            }
-          }}
-        >
-          {location && (
-            <Marker
-              coordinate={location}
-              title={driver?.name || 'Driver'}
-              description={isOnline ? 'Online - Active' : 'Offline'}
-              zIndex={99}
-            >
-              <View style={styles.driverMarkerContainer}>
-                <View style={styles.driverMarkerPulse} />
-                <View style={styles.driverMarkerBadge}>
-                  <Text style={styles.driverMarkerEmoji}>🚘</Text>
+        isOnline ? (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={StyleSheet.absoluteFill}
+            initialRegion={region}
+            showsUserLocation={true}
+            showsMyLocationButton={false}
+          >
+            {location && (
+              <Marker
+                coordinate={location}
+                title={driver?.name || 'Driver'}
+                description="Online - Active"
+                zIndex={99}
+              >
+                <View style={styles.driverMarkerContainer}>
+                  <View style={styles.driverMarkerPulse} />
+                  <View style={styles.driverMarkerBadge}>
+                    <Text style={styles.driverMarkerEmoji}>🚘</Text>
+                  </View>
                 </View>
-              </View>
-            </Marker>
-          )}
+              </Marker>
+            )}
 
-          {/* Active Order Pickup & Delivery Markers + Route Polyline */}
-          {activeOrder && (() => {
-            const pLat = Number(activeOrder.pickup?.lat || 0);
-            const pLng = Number(activeOrder.pickup?.lng || 0);
-            const dLat = Number(activeOrder.dropoff?.lat || 0);
-            const dLng = Number(activeOrder.dropoff?.lng || 0);
+            {/* Active Order Pickup & Delivery Markers + Route Polyline */}
+            {activeOrder && (() => {
+              const pLat = Number(activeOrder.pickup?.lat || 0);
+              const pLng = Number(activeOrder.pickup?.lng || 0);
+              const dLat = Number(activeOrder.dropoff?.lat || 0);
+              const dLng = Number(activeOrder.dropoff?.lng || 0);
 
-            const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
-            const targetLat = Number(isPickedUp ? dLat : pLat);
-            const targetLng = Number(isPickedUp ? dLng : pLng);
-            const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
+              const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+              const targetLat = Number(isPickedUp ? dLat : pLat);
+              const targetLng = Number(isPickedUp ? dLng : pLng);
+              const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
 
-            const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
-            const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
+              const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
+              const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
 
-            const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
-              ? routeCoordinates
-              : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
-                ? cachedRoute
-                : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
-                  ? routeCoordinates
-                  : (targetLat !== 0 && targetLng !== 0)
-                    ? [
-                      { latitude: startLoc.latitude, longitude: startLoc.longitude },
-                      { latitude: targetLat, longitude: targetLng }
-                    ]
-                    : [];
+              const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
+                ? routeCoordinates
+                : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
+                  ? cachedRoute
+                  : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
+                    ? routeCoordinates
+                    : (targetLat !== 0 && targetLng !== 0)
+                      ? [
+                        { latitude: startLoc.latitude, longitude: startLoc.longitude },
+                        { latitude: targetLat, longitude: targetLng }
+                      ]
+                      : [];
 
-            return (
-              <>
-                {/* Pickup Marker */}
-                {pLat !== 0 && pLng !== 0 && (
-                  <Marker
-                    coordinate={{ latitude: pLat, longitude: pLng }}
-                    title="Pickup Location"
-                    description={activeOrder.pickup?.address || 'Pickup'}
-                    zIndex={999}
-                  >
-                    <View style={styles.pickupMarkerBadge}>
-                      <Text style={styles.markerBadgeEmoji}>🏪</Text>
-                    </View>
-                  </Marker>
-                )}
+              return (
+                <>
+                  {/* Pickup Marker */}
+                  {pLat !== 0 && pLng !== 0 && (
+                    <Marker
+                      coordinate={{ latitude: pLat, longitude: pLng }}
+                      title="Pickup Location"
+                      description={activeOrder.pickup?.address || 'Pickup'}
+                      zIndex={999}
+                    >
+                      <View style={styles.pickupMarkerBadge}>
+                        <Text style={styles.markerBadgeEmoji}>🏪</Text>
+                      </View>
+                    </Marker>
+                  )}
 
-                {/* Delivery Marker */}
-                {dLat !== 0 && dLng !== 0 && (
-                  <Marker
-                    coordinate={{ latitude: dLat, longitude: dLng }}
-                    title="Delivery Location"
-                    description={activeOrder.dropoff?.address || 'Delivery'}
-                    zIndex={999}
-                  >
-                    <View style={styles.deliveryMarkerBadge}>
-                      <Text style={styles.markerBadgeEmoji}>🏁</Text>
-                    </View>
-                  </Marker>
-                )}
+                  {/* Delivery Marker */}
+                  {dLat !== 0 && dLng !== 0 && (
+                    <Marker
+                      coordinate={{ latitude: dLat, longitude: dLng }}
+                      title="Delivery Location"
+                      description={activeOrder.dropoff?.address || 'Delivery'}
+                      zIndex={999}
+                    >
+                      <View style={styles.deliveryMarkerBadge}>
+                        <Text style={styles.markerBadgeEmoji}>🏁</Text>
+                      </View>
+                    </Marker>
+                  )}
 
-                {/* Polyline */}
-                {polylinePoints.length >= 2 && (
-                  <Polyline
-                    key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
-                    coordinates={polylinePoints}
-                    strokeColor="#2563eb"
-                    strokeWidth={7}
-                    lineCap="round"
-                    lineJoin="round"
-                    geodesic={true}
-                    zIndex={9999}
-                  />
-                )}
-              </>
-            );
-          })()}
-        </MapView>
+                  {/* Polyline */}
+                  {polylinePoints.length >= 2 && (
+                    <Polyline
+                      key={`poly_${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}_${polylinePoints.length}`}
+                      coordinates={polylinePoints}
+                      strokeColor="#2563eb"
+                      strokeWidth={7}
+                      lineCap="round"
+                      lineJoin="round"
+                      geodesic={true}
+                      zIndex={9999}
+                    />
+                  )}
+                </>
+              );
+            })()}
+          </MapView>
+        ) : (
+          /* Clean White Offline Screen when Approved Driver is Offline */
+          <View style={styles.offlineMapPlaceholder}>
+            <View style={styles.offlineGlowCircle}>
+              <OfflineSignalIcon size={56} color="#64748B" />
+            </View>
+
+            <Text style={styles.offlineTitle}>You're currently offline.</Text>
+            <Text style={styles.offlineSubtitle}>
+              Turn on your availability to get orders.
+            </Text>
+          </View>
+        )
       ) : (
         <View style={styles.unverifiedMapPlaceholder}>
           <View style={styles.unverifiedGlowCircle}>
@@ -1043,7 +1052,7 @@ export const HomeScreen = () => {
 
         {/* Driver Name & Phone / Vehicle Plate */}
         <View style={styles.headerInfoCol}>
- <Text style={styles.driverNameTitle} numberOfLines={1}>
+          <Text style={styles.driverNameTitle} numberOfLines={1}>
             {'Welcome'}
           </Text>
 
@@ -1113,7 +1122,7 @@ export const HomeScreen = () => {
       ) : driver?.authorizationStatus === 'pending' ? (
         <View style={styles.submittedCard}>
           <Text style={styles.submittedTitle}>Documents Submitted</Text>
-          <Text style={styles.submittedSubtitle}>Waiting for Admin Approval</Text>
+          <Text style={styles.submittedSubtitle}>Waiting for Approval</Text>
         </View>
       ) : driver?.authorizationStatus === 'rejected' ? (
         <TouchableOpacity
@@ -2085,6 +2094,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: 300,
+  },
+  offlineMapPlaceholder: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 80,
+    paddingBottom: 120,
+    zIndex: 1,
+  },
+  offlineGlowCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  offlineTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  offlineSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 21,
+    maxWidth: 280,
   },
 });
 export default HomeScreen;

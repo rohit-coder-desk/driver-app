@@ -78,11 +78,11 @@ export const LoginScreen = () => {
         {/* Input Form */}
         <View style={styles.formContainer}>
           {/* Username / Phone Field */}
-          <Text style={styles.label}>Username or Phone Number</Text>
+          <Text style={styles.label}>Name or Phone Number</Text>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
-              placeholder="Enter username or phone number"
+              placeholder="Enter name or phone number"
               placeholderTextColor="#64748B"
               value={username}
               onChangeText={(txt) => {

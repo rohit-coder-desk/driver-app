@@ -44,28 +44,32 @@ export const RegisterScreen = () => {
     // 1. Name Validation
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Full Name is required.');
+      setError('Firstname is required.');
       return;
     }
     if (trimmedName.length < 2) {
-      setError('Full Name must be at least 2 characters long.');
+      setError('Firstname must be at least 2 characters long.');
       return;
     }
 
     // 2. Username Validation
     const trimmedUsername = username.trim();
     if (!trimmedUsername) {
-      setError('Username is required.');
+      setError('Lastname is required.');
       return;
     }
     if (trimmedUsername.length < 3) {
-      setError('Username must be at least 3 characters long.');
+      setError('Lastname must be at least 3 characters long.');
       return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
       setError('Username can only contain letters, numbers, and underscores.');
       return;
     }
+
+    const trimemail = email.trim()
+
+
 
     // 3. Mobile Number Validation
     let rawPhone = phone.trim().replace(/\s+/g, '');
@@ -94,6 +98,12 @@ export const RegisterScreen = () => {
       return;
     }
 
+    // Check if email is empty
+    if (!email.trim()) {
+      setError('Email is required.');
+      return;
+    }
+
     // 5. Password Validation
     if (!password) {
       setError('Password is required.');
@@ -109,7 +119,7 @@ export const RegisterScreen = () => {
       await register(
         trimmedName,
         finalPhone,
-        trimmedEmail || undefined,
+        trimmedEmail,
         password,
         undefined,
         trimmedUsername
@@ -154,7 +164,7 @@ export const RegisterScreen = () => {
 
           {/* Full Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name *</Text>
+            <Text style={styles.label}>First Name *</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter full name"
@@ -167,7 +177,7 @@ export const RegisterScreen = () => {
 
           {/* Username */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username *</Text>
+            <Text style={styles.label}>Last Name *</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter username"
@@ -207,7 +217,7 @@ export const RegisterScreen = () => {
 
           {/* Email Address */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address (Optional)</Text>
+            <Text style={styles.label}>Email Address</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter email address"

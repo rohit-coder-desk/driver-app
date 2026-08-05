@@ -251,15 +251,15 @@ export const ProfileScreen = () => {
     if (rc) formData.append('rcPhoto', { uri: rc.uri, type: rc.type, name: rc.fileName } as any);
     if (insurance) formData.append('insurancePhoto', { uri: insurance.uri, type: insurance.type, name: insurance.fileName } as any);
 
-    formData.append('name', name);
-    formData.append('phone', phone);
-    formData.append('email', email);
-    formData.append('vehicleBrand', vehicleBrand);
-    formData.append('vehicleModel', vehicleModel);
-    formData.append('vehiclePlate', vehiclePlate);
-    formData.append('vehicleColor', vehicleColor);
-    formData.append('drivingLicenceNumber', drivingLicenceNumber);
-    formData.append('drivingLicenceExpiry', drivingLicenceExpiry);
+    if (name) formData.append('name', name);
+    if (phone) formData.append('phone', phone);
+    if (email) formData.append('email', email);
+    if (vehicleBrand) formData.append('vehicleBrand', vehicleBrand);
+    if (vehicleModel) formData.append('vehicleModel', vehicleModel);
+    if (vehiclePlate) formData.append('vehiclePlate', vehiclePlate);
+    if (vehicleColor) formData.append('vehicleColor', vehicleColor);
+    if (drivingLicenceNumber) formData.append('drivingLicenceNumber', drivingLicenceNumber);
+    if (drivingLicenceExpiry) formData.append('drivingLicenceExpiry', drivingLicenceExpiry);
 
     setLoading(true);
     try {
@@ -268,12 +268,13 @@ export const ProfileScreen = () => {
 
       const isDocUpload = !!(avatar || aadhaarFront || aadhaarBack || licenceFront || licenceBack || rc || insurance || drivingLicenceNumber !== (driver?.drivingLicenceNumber || '') || drivingLicenceExpiry !== (driver?.drivingLicenceExpiry || ''));
       const successMessage = isDocUpload
-        ? 'Profile documents submitted successfully. Waiting for Admin approval.'
+        ? 'Profile documents submitted successfully. Waiting for approval.'
         : 'Profile updated successfully!';
 
       showModal('accept', 'Success', successMessage, () => navigation.goBack());
     } catch (error: any) {
-      showModal('error', 'Submission Failed', error.toString() || 'Could not save profile details.');
+      const errorMessage = typeof error === 'string' ? error : error?.message || error?.error || 'Could not save profile details.';
+      showModal('error', 'Submission Failed', errorMessage);
     } finally {
       setLoading(false);
     }

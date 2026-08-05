@@ -25,7 +25,8 @@ export const DriverService = {
       const response = await driverApi.uploadDocuments(formData);
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.message || 'Failed to upload documents.';
+      console.error('❌ [DRIVER SERVICE] uploadDocuments error:', error.response?.data || error.message || error);
+      throw error.response?.data?.message || error.message || 'Failed to upload documents.';
     }
   },
 

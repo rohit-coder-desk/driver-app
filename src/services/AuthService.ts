@@ -9,13 +9,13 @@ export const AuthService = {
       const response = await authApi.login(payload);
       return response.data;
     } catch (error: any) {
-      if (error.response?.data?.message) {
-        throw error.response.data.message;
+      if (error.response?.data) {
+        throw error.response.data;
       }
       if (error.message === 'Network Error' || !error.response) {
-        throw 'Cannot connect to server. Please check server & network connection.';
+        throw { message: 'Cannot connect to server. Please check server & network connection.' };
       }
-      throw 'Login failed. Please check your credentials.';
+      throw { message: 'Login failed. Please check your credentials.' };
     }
   },
 

@@ -106,6 +106,17 @@ export const LockShieldIcon: React.FC<{ size?: number; color?: string }> = ({ si
   </View>
 );
 
+export const OfflineSignalIcon: React.FC<{ size?: number; color?: string }> = ({ size = 64, color = '#64748B' }) => (
+  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+    <View style={{ width: size * 0.8, height: size * 0.8, borderRadius: size * 0.4, borderWidth: 3, borderColor: color, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(100, 116, 139, 0.08)' }}>
+      <View style={{ width: size * 0.5, height: size * 0.5, borderRadius: size * 0.25, borderWidth: 2.5, borderColor: color, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1, backgroundColor: color }} />
+      </View>
+      <View style={{ position: 'absolute', width: size * 0.85, height: 3, backgroundColor: '#EF4444', borderRadius: 1.5, transform: [{ rotate: '-45deg' }] }} />
+    </View>
+  </View>
+);
+
 export const CategoryVectorIcon: React.FC<{ type: string; color?: string; size?: number }> = ({
   type,
   color = '#60A5FA',

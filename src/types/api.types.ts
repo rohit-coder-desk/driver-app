@@ -1,5 +1,7 @@
 export interface LoginPayload {
-  username: string; // Can be phone or custom username
+  username?: string;
+  name?: string;
+  phone?: string;
   password?: string;
 }
 

@@ -35,12 +35,14 @@ const documentKeys = [
   { key: 'drivingLicenceBackPhoto', label: 'License Back' },
   { key: 'rcPhoto', label: 'RC Document' },
   { key: 'insurancePhoto', label: 'Vehicle Insurance' },
-  { key: 'vehiclePhoto', label: 'Vehicle Photo' },
+  // { key: 'vehiclePhoto', label: 'Vehicle Photo' },
 ];
 
 export const DocumentsScreen = () => {
   const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
+
+  console.log(`[STEP-16] [DOCUMENTS SCREEN RENDER] authStatus="${driver?.authorizationStatus}", docStatuses=`, JSON.stringify(driver?.documentStatuses || {}));
 
   const [selectedFiles, setSelectedFiles] = useState<Record<string, SelectedFile | null>>(() => {
     const initial: Record<string, SelectedFile | null> = {};
@@ -87,21 +89,62 @@ export const DocumentsScreen = () => {
     setModalConfig((prev) => ({ ...prev, visible: false, onPrimaryAction: undefined }));
   }, [modalConfig]);
 
-  const getFullUrl = (filePath?: string | null) => {
-    if (!filePath) return '';
-    if (filePath.startsWith('http')) return filePath;
-    const cleanPath = filePath.replace(/\\/g, '/');
-    return `${API_BASE_URL}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
-  };
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
+  const handleImageError = useCallback((key: string) => {
+    setFailedImages((prev) => ({ ...prev, [key]: true }));
+  }, []);
+
+  const getFullUrl = useCallback((filePath?: string | null) => {
+    if (!filePath || typeof filePath !== 'string') return '';
+    let clean = filePath.trim();
+    if (!clean) return '';
+
+    // Replace Windows backslashes
+    clean = clean.replace(/\\/g, '/');
+
+    // Local device image URI or data URI
+    if (clean.startsWith('file://') || clean.startsWith('content://') || clean.startsWith('data:')) {
+      return clean;
+    }
+
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      // Handle localhost or 127.0.0.1 in stored URLs
+      if (clean.includes('localhost') || clean.includes('127.0.0.1')) {
+        const baseUrlClean = API_BASE_URL.replace(/\/+$/, '');
+        if (!baseUrlClean.includes('localhost') && !baseUrlClean.includes('127.0.0.1')) {
+          clean = clean.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, baseUrlClean);
+        } else if (Platform.OS === 'android') {
+          clean = clean.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+        }
+      }
+      return encodeURI(clean);
+    }
+
+    // Relative path handling
+    const base = API_BASE_URL.replace(/\/+$/, '');
+    const path = clean.startsWith('/') ? clean : `/${clean}`;
+    return encodeURI(`${base}${path}`);
+  }, []);
 
   const documentItems = useMemo(
     () =>
-      documentKeys.map((item) => ({
-        ...item,
-        uri: getFullUrl(driver?.[item.key as keyof typeof driver] as string | undefined | null),
-        selectedFile: selectedFiles[item.key],
-      })),
-    [driver, selectedFiles]
+      documentKeys.map((item) => {
+        let rawPath = driver?.[item.key as keyof typeof driver] as string | undefined | null;
+        if (!rawPath && driver) {
+          const d = driver as any;
+          if (item.key === 'identityCardPhoto') rawPath = d.aadhaarPhoto || d.identityCard;
+          if (item.key === 'identityCardBackPhoto') rawPath = d.aadhaarBackPhoto || d.identityCardBack;
+          if (item.key === 'drivingLicencePhoto') rawPath = d.licencePhoto || d.drivingLicence;
+          if (item.key === 'drivingLicenceBackPhoto') rawPath = d.licenceBackPhoto || d.drivingLicenceBack;
+        }
+        return {
+          ...item,
+          uri: getFullUrl(rawPath),
+          selectedFile: selectedFiles[item.key],
+        };
+      }),
+    [driver, selectedFiles, getFullUrl]
   );
 
   const hasNewUploads = Object.values(selectedFiles).some(Boolean);
@@ -143,6 +186,10 @@ export const DocumentsScreen = () => {
       setSelectedFiles((prev) => ({
         ...prev,
         [key]: newFile,
+      }));
+      setFailedImages((prev) => ({
+        ...prev,
+        [key]: false,
       }));
     };
 
@@ -215,7 +262,8 @@ export const DocumentsScreen = () => {
         return reset;
       });
     } catch (error: any) {
-      showModal('error', 'Upload failed', error?.toString() || 'Could not upload documents.');
+      const msg = typeof error === 'string' ? error : error?.message || error?.error || 'Could not upload documents.';
+      showModal('error', 'Upload failed', msg);
     } finally {
       setLoading(false);
     }
@@ -299,15 +347,20 @@ export const DocumentsScreen = () => {
               <View key={item.key} style={[styles.documentCard, cardState === 'rejected' && styles.documentCardRejected]}>
                 <Text style={styles.documentLabel}>{item.label}</Text>
 
-                {displayUri ? (
+                {displayUri && !failedImages[item.key] ? (
                   <View style={[
                     styles.imageWrapper,
                     cardState === 'rejected' && styles.imageWrapperRejected,
                     cardState === 'approved' && styles.imageWrapperApproved,
                     cardState === 'pending' && styles.imageWrapperPending,
                   ]}>
-                    <Image source={{ uri: displayUri }} style={styles.documentImage} resizeMode="cover" />
-                    
+                    <Image
+                      source={{ uri: displayUri }}
+                      style={styles.documentImage}
+                      resizeMode="cover"
+                      onError={() => handleImageError(item.key)}
+                    />
+
                     {/* Badge Overlay */}
                     {cardState === 'rejected' && (
                       <View style={[styles.badgeOverlay, styles.badgeRejected]}>
@@ -327,6 +380,37 @@ export const DocumentsScreen = () => {
                     {cardState === 'selected' && (
                       <View style={[styles.badgeOverlay, styles.badgeSelected]}>
                         <Text style={styles.badgeText}>✏️ Selected</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : displayUri && failedImages[item.key] ? (
+                  <View style={[
+                    styles.imageWrapper,
+                    styles.failedImageWrapper,
+                    cardState === 'rejected' && styles.imageWrapperRejected,
+                    cardState === 'approved' && styles.imageWrapperApproved,
+                    cardState === 'pending' && styles.imageWrapperPending,
+                  ]}>
+                    <View style={styles.failedImageContent}>
+                      <Text style={{ fontSize: 20, marginBottom: 2 }}>📄</Text>
+                      <Text style={styles.failedImageText}>File uploaded</Text>
+                      <Text style={styles.failedImageSubtext}>Tap to replace image</Text>
+                    </View>
+
+                    {/* Badge Overlay */}
+                    {cardState === 'rejected' && (
+                      <View style={[styles.badgeOverlay, styles.badgeRejected]}>
+                        <Text style={styles.badgeText}>✕ Rejected</Text>
+                      </View>
+                    )}
+                    {cardState === 'approved' && (
+                      <View style={[styles.badgeOverlay, styles.badgeApproved]}>
+                        <Text style={styles.badgeText}>✓ Approved</Text>
+                      </View>
+                    )}
+                    {cardState === 'pending' && (
+                      <View style={[styles.badgeOverlay, styles.badgePending]}>
+                        <Text style={styles.badgeText}>⏳ Under Review</Text>
                       </View>
                     )}
                   </View>
@@ -577,6 +661,28 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#0D2A54',
+  },
+  failedImageWrapper: {
+    backgroundColor: '#0D2A54',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  failedImageContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
+  },
+  failedImageText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  failedImageSubtext: {
+    color: '#64748B',
+    fontSize: 9.5,
+    textAlign: 'center',
+    marginTop: 2,
   },
   badgeOverlay: {
     position: 'absolute',
