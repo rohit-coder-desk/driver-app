@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -18,6 +19,17 @@ import { API_BASE_URL } from '../../config/env';
 export const MyProfileScreen = () => {
   const { driver } = useAuth();
   const navigation = useNavigation<any>();
+
+  // Modal for viewing profile photo in full-screen
+  const [fullImageModal, setFullImageModal] = useState<{
+    visible: boolean;
+    uri: string;
+    title: string;
+  }>({
+    visible: false,
+    uri: '',
+    title: '',
+  });
 
   const getFullUrl = (filePath?: string) => {
     if (!filePath) return '';
@@ -74,7 +86,19 @@ export const MyProfileScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Driver Main Profile Card */}
         <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => {
+              if (driver?.avatarPhoto) {
+                setFullImageModal({
+                  visible: true,
+                  uri: getFullUrl(driver.avatarPhoto),
+                  title: `${driver?.name || 'Driver'}'s Profile Photo`,
+                });
+              }
+            }}
+            activeOpacity={driver?.avatarPhoto ? 0.8 : 1}
+          >
             {driver?.avatarPhoto ? (
               <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.avatarImage} />
             ) : (
@@ -84,7 +108,7 @@ export const MyProfileScreen = () => {
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
 
           <Text style={styles.driverName}>{driver?.name || 'Driver'}</Text>
           <Text style={styles.driverPhone}>{driver?.phone || 'No Phone Number'}</Text>
@@ -109,8 +133,13 @@ export const MyProfileScreen = () => {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>name</Text>
+            <Text style={styles.infoLabel}>Name</Text>
             <Text style={styles.infoValue}>{driver?.name || 'N/A'}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Username</Text>
+            <Text style={styles.infoValue}>{driver?.username || 'N/A'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
@@ -189,6 +218,58 @@ export const MyProfileScreen = () => {
           <Text style={styles.editProfileBtnText}>Edit Profile Details</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Full-Screen Image Viewer Modal */}
+      <Modal
+        visible={fullImageModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFullImageModal({ visible: false, uri: '', title: '' })}
+      >
+        <View style={styles.fullScreenModalBg}>
+          <StatusBar backgroundColor="#0A1220" barStyle="light-content" translucent={true} />
+
+          {/* Notch-safe Header with Back Button & Close Button */}
+          <View style={[styles.fullScreenHeaderContainer, { paddingTop: Platform.OS === 'ios' ? 50 : Math.max(StatusBar.currentHeight || 0, 24) + 10 }]}>
+            <TouchableOpacity
+              style={styles.fullScreenBackBtn}
+              onPress={() => setFullImageModal({ visible: false, uri: '', title: '' })}
+              activeOpacity={0.8}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Text style={styles.fullScreenBackBtnText}>←</Text>
+            </TouchableOpacity>
+
+            <View style={styles.fullScreenTitleContainer}>
+              <Text style={styles.fullScreenTitleText}>{fullImageModal.title}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.fullScreenCloseBtn}
+              onPress={() => setFullImageModal({ visible: false, uri: '', title: '' })}
+              activeOpacity={0.8}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Text style={styles.fullScreenCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Full Screen Image Container */}
+          <TouchableOpacity
+            style={styles.fullScreenImageContent}
+            onPress={() => setFullImageModal({ visible: false, uri: '', title: '' })}
+            activeOpacity={1}
+          >
+            {!!fullImageModal.uri && (
+              <Image
+                source={{ uri: fullImageModal.uri }}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -393,6 +474,75 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+
+  // Full-Screen Image Modal Styles
+  fullScreenModalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.98)',
+    justifyContent: 'space-between',
+  },
+  fullScreenHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    backgroundColor: 'rgba(10, 18, 32, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E3A8A',
+    zIndex: 10,
+  },
+  fullScreenBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0D2A54',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  fullScreenBackBtnText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: -2,
+  },
+  fullScreenTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 10,
+  },
+  fullScreenTitleText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  fullScreenCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0D2A54',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  fullScreenCloseText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  fullScreenImageContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
   },
 });
 
