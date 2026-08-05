@@ -1,10 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme. -->
+    <!-- Base application theme for Android 12+ (API 31+) -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
         <item name="android:windowBackground">#061A3A</item>
+        <item name="android:windowSplashScreenBackground">#061A3A</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#061A3A</item>
     </style>
 
 </resources>

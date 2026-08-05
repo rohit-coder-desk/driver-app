@@ -8,6 +8,7 @@ import MyOrdersScreen from '../screens/orders/MyOrdersScreen';
 import OrderDetailsScreen from '../screens/orders/OrderDetailsScreen';
 import DocumentsScreen from '../screens/documents/DocumentsScreen';
 import HelpSupportScreen from '../screens/support/HelpSupportScreen';
+import SupportCategoryDetailScreen from '../screens/support/SupportCategoryDetailScreen';
 import EarningsScreen from '../screens/earnings/EarningsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -26,6 +27,7 @@ export const AppStack = () => {
       <Stack.Screen name={ROUTES.ORDER_DETAILS} component={OrderDetailsScreen} />
       <Stack.Screen name={ROUTES.DOCUMENTS} component={DocumentsScreen} />
       <Stack.Screen name={ROUTES.HELP_SUPPORT} component={HelpSupportScreen} />
+      <Stack.Screen name={ROUTES.SUPPORT_CATEGORY_DETAIL} component={SupportCategoryDetailScreen} />
       <Stack.Screen name={ROUTES.EARNINGS} component={EarningsScreen} />
     </Stack.Navigator>
   );

@@ -14,6 +14,9 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 
+import { SUPPORT_CATEGORIES, SupportCategory } from '../../data/supportCategories';
+import { CategoryVectorIcon } from '../../components/common/Icons';
+
 export const HelpSupportScreen = () => {
   const navigation = useNavigation<any>();
 
@@ -29,8 +32,20 @@ export const HelpSupportScreen = () => {
     Linking.openURL('mailto:support@driverapp.example.com?subject=Driver%20Support%20Request');
   };
 
+  const callDispatch = () => {
+    Linking.openURL('tel:+18005550199').catch(() => {
+      openSupportEmail();
+    });
+  };
+
+  const handleCategoryPress = (categoryId: string) => {
+    navigation.navigate(ROUTES.SUPPORT_CATEGORY_DETAIL, { categoryId });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.surface} />
+
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
@@ -45,17 +60,48 @@ export const HelpSupportScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Hero Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroAccent} />
           <View style={styles.heroTextWrap}>
             <Text style={styles.eyebrow}>Driver support center</Text>
             <Text style={styles.title}>Need help right now?</Text>
             <Text style={styles.description}>
-              Our team is available 24/7 for trip, document, and account assistance.
+              Select a category below for quick solutions or reach out to support 24/7.
             </Text>
           </View>
         </View>
 
+        {/* Categorized Support Options Header */}
+        <Text style={styles.categorySectionHeading}>Support Categories</Text>
+
+        {/* Categories List */}
+        <View style={styles.categoryListContainer}>
+          {SUPPORT_CATEGORIES.map((cat: SupportCategory) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.categoryCard}
+              onPress={() => handleCategoryPress(cat.id)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.catIconBox}>
+                <CategoryVectorIcon type={cat.id} color="#60A5FA" size={22} />
+              </View>
+              <View style={styles.catInfoWrap}>
+                <Text style={styles.catTitle}>{cat.title}</Text>
+                <Text style={styles.catDescription} numberOfLines={1}>
+                  {cat.description}
+                </Text>
+              </View>
+              <Text style={styles.catChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Contact Support Direct Section Header */}
+        <Text style={[styles.categorySectionHeading, { marginTop: 12 }]}>Direct Assistance</Text>
+
+        {/* Existing Grid Options: Email Support & Call Dispatch */}
         <View style={styles.gridContainer}>
           <TouchableOpacity style={styles.gridCard} onPress={openSupportEmail} activeOpacity={0.85}>
             <View style={styles.gridBadge}>
@@ -65,7 +111,7 @@ export const HelpSupportScreen = () => {
             <Text style={styles.gridCardSub}>Send a detailed message with your issue.</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.gridCard} onPress={openSupportEmail} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.gridCard} onPress={callDispatch} activeOpacity={0.85}>
             <View style={styles.gridBadgeSecondary}>
               <Text style={styles.gridBadgeText}>Call</Text>
             </View>
@@ -74,6 +120,7 @@ export const HelpSupportScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Existing Contact Support Team Card */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardBadge}>
@@ -81,7 +128,9 @@ export const HelpSupportScreen = () => {
             </View>
             <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Direct Driver Helpdesk</Text>
-              <Text style={styles.cardText}>Connect with support for document verification, payouts, and trip-related questions.</Text>
+              <Text style={styles.cardText}>
+                Connect with support for document verification, payouts, and trip-related questions.
+              </Text>
             </View>
           </View>
           <TouchableOpacity style={styles.actionBtn} onPress={openSupportEmail} activeOpacity={0.85}>
@@ -293,6 +342,65 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.3,
+  },
+  categorySectionHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: COLORS.textSecondary,
+    marginBottom: 12,
+  },
+  categoryListContainer: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  categoryCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  catIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.surfaceSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  catIconText: {
+    fontSize: 20,
+  },
+  catInfoWrap: {
+    flex: 1,
+    marginRight: 8,
+  },
+  catTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  catDescription: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  catChevron: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
 });
 

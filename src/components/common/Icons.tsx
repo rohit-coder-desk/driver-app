@@ -106,6 +106,82 @@ export const LockShieldIcon: React.FC<{ size?: number; color?: string }> = ({ si
   </View>
 );
 
+export const CategoryVectorIcon: React.FC<{ type: string; color?: string; size?: number }> = ({
+  type,
+  color = '#60A5FA',
+  size = 20,
+}) => {
+  switch (type) {
+    case 'documents':
+      return (
+        <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: size * 0.7, height: size * 0.85, borderWidth: 2, borderColor: color, borderRadius: 4, padding: 2 }}>
+            <View style={{ width: '80%', height: 2, backgroundColor: color, marginBottom: 3, borderRadius: 1 }} />
+            <View style={{ width: '100%', height: 2, backgroundColor: color, marginBottom: 3, borderRadius: 1 }} />
+            <View style={{ width: '60%', height: 2, backgroundColor: color, borderRadius: 1 }} />
+          </View>
+        </View>
+      );
+    case 'trips':
+      return (
+        <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: size * 0.85, height: size * 0.45, borderWidth: 2, borderColor: color, borderRadius: 6, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ width: size * 0.35, height: 2, backgroundColor: color, borderRadius: 1 }} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: size * 0.7, marginTop: 2 }}>
+            <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+            <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+          </View>
+        </View>
+      );
+    case 'earnings':
+      return (
+        <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color, fontSize: size * 0.6, fontWeight: '900', marginTop: -1 }}>₹</Text>
+        </View>
+      );
+    case 'navigation':
+      return (
+        <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: size * 0.5, height: size * 0.5, borderRadius: size * 0.25, borderWidth: 2, borderColor: color, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+          </View>
+          <View style={{ width: 0, height: 0, borderLeftWidth: size * 0.2, borderRightWidth: size * 0.2, borderTopWidth: size * 0.3, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: color, marginTop: -1 }} />
+        </View>
+      );
+    case 'account':
+      return (
+        <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: size * 0.4, height: size * 0.4, borderRadius: size * 0.2, backgroundColor: color, marginBottom: 2 }} />
+          <View style={{ width: size * 0.75, height: size * 0.35, borderRadius: size * 0.2, backgroundColor: color }} />
+        </View>
+      );
+    case 'vehicle':
+      return (
+        <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: size * 0.85, height: size * 0.4, borderWidth: 2, borderColor: color, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: size * 0.65, marginTop: 1 }}>
+            <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+            <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+          </View>
+        </View>
+      );
+    case 'app_issues':
+      return (
+        <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: size * 0.4, height: size * 0.4, borderRadius: size * 0.2, borderWidth: 2, borderColor: color }} />
+        </View>
+      );
+    case 'faqs':
+    default:
+      return (
+        <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color, fontSize: size * 0.55, fontWeight: '900' }}>?</Text>
+        </View>
+      );
+  }
+};
+
 const styles = StyleSheet.create({
   iconBase: {
     justifyContent: 'center',

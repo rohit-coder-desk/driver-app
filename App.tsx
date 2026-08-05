@@ -1,21 +1,31 @@
 import React from 'react';
 import { StatusBar, View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
-import { COLORS } from './src/constants/colors';
+
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#061A3A',
+    card: '#0B2246',
+    text: '#FFFFFF',
+    border: '#1E3A8A',
+  },
+};
 
 function App() {
   return (
     <SafeAreaProvider style={styles.container}>
       <View style={styles.container}>
         <StatusBar
-          barStyle="dark-content"
-          backgroundColor={COLORS.background}
+          barStyle="light-content"
+          backgroundColor="#061A3A"
         />
         <AuthProvider>
-          <NavigationContainer>
+          <NavigationContainer theme={navigationTheme}>
             <RootNavigator />
           </NavigationContainer>
         </AuthProvider>
@@ -27,7 +37,7 @@ function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#061A3A',
   },
 });
 
