@@ -11,6 +11,7 @@ import {
   Image,
   Alert,
   PermissionsAndroid,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
@@ -89,6 +90,31 @@ export const DocumentsScreen = () => {
     setModalConfig((prev) => ({ ...prev, visible: false, onPrimaryAction: undefined }));
   }, [modalConfig]);
 
+  const [previewModal, setPreviewModal] = useState<{
+    visible: boolean;
+    uri: string;
+    title: string;
+    status: string;
+  }>({
+    visible: false,
+    uri: '',
+    title: '',
+    status: '',
+  });
+
+  const openImagePreview = useCallback((uri: string, title: string, status: string) => {
+    setPreviewModal({
+      visible: true,
+      uri,
+      title,
+      status,
+    });
+  }, []);
+
+  const closeImagePreview = useCallback(() => {
+    setPreviewModal((prev) => ({ ...prev, visible: false }));
+  }, []);
+
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const handleImageError = useCallback((key: string) => {
@@ -104,7 +130,13 @@ export const DocumentsScreen = () => {
     clean = clean.replace(/\\/g, '/');
 
     // Local device image URI or data URI
-    if (clean.startsWith('file://') || clean.startsWith('content://') || clean.startsWith('data:')) {
+    if (
+      clean.startsWith('file:') ||
+      clean.startsWith('content:') ||
+      clean.startsWith('data:') ||
+      clean.startsWith('ph:') ||
+      clean.startsWith('assets-library:')
+    ) {
       return clean;
     }
 
@@ -347,13 +379,18 @@ export const DocumentsScreen = () => {
               <View key={item.key} style={[styles.documentCard, cardState === 'rejected' && styles.documentCardRejected]}>
                 <Text style={styles.documentLabel}>{item.label}</Text>
 
-                {displayUri && !failedImages[item.key] ? (
-                  <View style={[
-                    styles.imageWrapper,
-                    cardState === 'rejected' && styles.imageWrapperRejected,
-                    cardState === 'approved' && styles.imageWrapperApproved,
-                    cardState === 'pending' && styles.imageWrapperPending,
-                  ]}>
+                {displayUri ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.imageWrapper,
+                      cardState === 'selected' && styles.imageWrapperSelected,
+                      cardState === 'rejected' && styles.imageWrapperRejected,
+                      cardState === 'approved' && styles.imageWrapperApproved,
+                      cardState === 'pending' && styles.imageWrapperPending,
+                    ]}
+                    onPress={() => openImagePreview(displayUri, item.label, cardState)}
+                    activeOpacity={0.85}
+                  >
                     <Image
                       source={{ uri: displayUri }}
                       style={styles.documentImage}
@@ -379,41 +416,10 @@ export const DocumentsScreen = () => {
                     )}
                     {cardState === 'selected' && (
                       <View style={[styles.badgeOverlay, styles.badgeSelected]}>
-                        <Text style={styles.badgeText}>✏️ Selected</Text>
+                        <Text style={styles.badgeText}>Selected</Text>
                       </View>
                     )}
-                  </View>
-                ) : displayUri && failedImages[item.key] ? (
-                  <View style={[
-                    styles.imageWrapper,
-                    styles.failedImageWrapper,
-                    cardState === 'rejected' && styles.imageWrapperRejected,
-                    cardState === 'approved' && styles.imageWrapperApproved,
-                    cardState === 'pending' && styles.imageWrapperPending,
-                  ]}>
-                    <View style={styles.failedImageContent}>
-                      <Text style={{ fontSize: 20, marginBottom: 2 }}>📄</Text>
-                      <Text style={styles.failedImageText}>File uploaded</Text>
-                      <Text style={styles.failedImageSubtext}>Tap to replace image</Text>
-                    </View>
-
-                    {/* Badge Overlay */}
-                    {cardState === 'rejected' && (
-                      <View style={[styles.badgeOverlay, styles.badgeRejected]}>
-                        <Text style={styles.badgeText}>✕ Rejected</Text>
-                      </View>
-                    )}
-                    {cardState === 'approved' && (
-                      <View style={[styles.badgeOverlay, styles.badgeApproved]}>
-                        <Text style={styles.badgeText}>✓ Approved</Text>
-                      </View>
-                    )}
-                    {cardState === 'pending' && (
-                      <View style={[styles.badgeOverlay, styles.badgePending]}>
-                        <Text style={styles.badgeText}>⏳ Under Review</Text>
-                      </View>
-                    )}
-                  </View>
+                  </TouchableOpacity>
                 ) : (
                   <View style={styles.emptyDocument}>
                     <Text style={styles.emptyText}>No file uploaded</Text>
@@ -447,15 +453,15 @@ export const DocumentsScreen = () => {
 
                 {/* Action Buttons */}
                 {cardState === 'approved' && (
-                  <View style={[styles.statusPillBtn, styles.statusPillApproved]}>
-                    <Text style={styles.statusPillTextApproved}>Approved</Text>
-                  </View>
+                  <TouchableOpacity style={styles.approvedUpdateButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
+                    <Text style={styles.approvedUpdateButtonText}>Replace Photo</Text>
+                  </TouchableOpacity>
                 )}
 
                 {cardState === 'pending' && (
-                  <View style={[styles.statusPillBtn, styles.statusPillPending]}>
-                    <Text style={styles.statusPillTextPending}>Under Review</Text>
-                  </View>
+                  <TouchableOpacity style={styles.approvedUpdateButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
+                    <Text style={styles.approvedUpdateButtonText}>Replace Photo</Text>
+                  </TouchableOpacity>
                 )}
 
                 {cardState === 'rejected' && (
@@ -498,6 +504,70 @@ export const DocumentsScreen = () => {
         primaryButtonText="OK"
         onPrimaryAction={hideModal}
       />
+
+      {/* Full-Screen Image Viewer Modal */}
+      <Modal
+        visible={previewModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImagePreview}
+      >
+        <View style={styles.fullScreenModalBg}>
+          <StatusBar backgroundColor="#0A1220" barStyle="light-content" translucent={true} />
+          
+          {/* Header with Back Button & Close Button */}
+          <View style={[styles.fullScreenHeaderContainer, { paddingTop: Platform.OS === 'ios' ? 50 : Math.max(StatusBar.currentHeight || 0, 24) + 10 }]}>
+            <TouchableOpacity
+              style={styles.fullScreenBackBtn}
+              onPress={closeImagePreview}
+              activeOpacity={0.8}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Text style={styles.fullScreenBackBtnText}>←</Text>
+            </TouchableOpacity>
+
+            <View style={styles.fullScreenTitleContainer}>
+              <Text style={styles.fullScreenTitleText}>{previewModal.title}</Text>
+              {previewModal.status === 'approved' && (
+                <Text style={styles.fullScreenStatusApprovedText}>✓ Approved</Text>
+              )}
+              {previewModal.status === 'pending' && (
+                <Text style={styles.fullScreenStatusPendingText}>⏳ Under Review</Text>
+              )}
+              {previewModal.status === 'rejected' && (
+                <Text style={styles.fullScreenStatusRejectedText}>✕ Rejected</Text>
+              )}
+              {previewModal.status === 'selected' && (
+                <Text style={styles.fullScreenStatusSelectedText}>Selected to upload</Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.fullScreenCloseBtn}
+              onPress={closeImagePreview}
+              activeOpacity={0.8}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Text style={styles.fullScreenCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Full Screen Image */}
+          <TouchableOpacity
+            style={styles.fullScreenImageContent}
+            onPress={closeImagePreview}
+            activeOpacity={1}
+          >
+            {previewModal.uri ? (
+              <Image
+                source={{ uri: previewModal.uri }}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+            ) : null}
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -644,6 +714,10 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  imageWrapperSelected: {
+    borderWidth: 2,
+    borderColor: '#0066FF',
   },
   imageWrapperRejected: {
     borderWidth: 2,
@@ -800,6 +874,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  approvedUpdateButton: {
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: '#0D2A54',
+    borderWidth: 1,
+    borderColor: '#16325B',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  approvedUpdateButtonText: {
+    color: '#60A5FA',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   submitButton: {
     marginTop: 10,
     borderRadius: 16,
@@ -822,6 +910,90 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  fullScreenModalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.98)',
+  },
+  fullScreenHeaderContainer: {
+    backgroundColor: '#0A1220',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+    zIndex: 9999,
+  },
+  fullScreenBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  fullScreenBackBtnText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  fullScreenTitleContainer: {
+    flex: 1,
+  },
+  fullScreenTitleText: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  fullScreenStatusApprovedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10B981',
+    marginTop: 2,
+  },
+  fullScreenStatusPendingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F59E0B',
+    marginTop: 2,
+  },
+  fullScreenStatusRejectedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EF4444',
+    marginTop: 2,
+  },
+  fullScreenStatusSelectedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3B82F6',
+    marginTop: 2,
+  },
+  fullScreenCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  fullScreenCloseText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  fullScreenImageContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
   },
 });
 

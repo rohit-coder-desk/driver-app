@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,22 @@ export const MyProfileScreen = () => {
     if (filePath.startsWith('http')) return filePath;
     return `${API_BASE_URL}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
   };
+
+  const docStatuses = useMemo(() => {
+    const raw = driver?.documentStatuses;
+    if (!raw) return {};
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return {};
+      }
+    }
+    return (raw as Record<string, any>) || {};
+  }, [driver]);
+
+  const rcExpiry = driver?.rcExpiry || docStatuses.rcExpiry || docStatuses.rcPhoto?.expiry;
+  const insuranceExpiry = driver?.insuranceExpiry || docStatuses.insuranceExpiry || docStatuses.insurancePhoto?.expiry;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -91,10 +107,10 @@ export const MyProfileScreen = () => {
 
         {/* Section: Personal Info */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>PERSONAL DETAILSssss</Text>
+          <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Username</Text>
-            <Text style={styles.infoValue}>{driver?.username || 'N/A'}</Text>
+            <Text style={styles.infoLabel}>name</Text>
+            <Text style={styles.infoValue}>{driver?.name || 'N/A'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
@@ -105,6 +121,36 @@ export const MyProfileScreen = () => {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Email Address</Text>
             <Text style={styles.infoValue}>{driver?.email || 'N/A'}</Text>
+          </View>
+        </View>
+
+        {/* Section: Address Info */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>ADDRESS DETAILS</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>City</Text>
+            <Text style={styles.infoValue}>{driver?.city || 'N/A'}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Address</Text>
+            <Text style={[styles.infoValue, { flex: 1, textAlign: 'right', marginLeft: 16 }]} numberOfLines={2}>
+              {driver?.address || 'N/A'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Section: Driver & Licence Info */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>DRIVER & LICENCE DETAILS</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Licence Number</Text>
+            <Text style={styles.infoValue}>{driver?.drivingLicenceNumber || 'N/A'}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Licence Expiry</Text>
+            <Text style={styles.infoValue}>{driver?.drivingLicenceExpiry || 'N/A'}</Text>
           </View>
         </View>
 
@@ -124,13 +170,13 @@ export const MyProfileScreen = () => {
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Licence Number</Text>
-            <Text style={styles.infoValue}>{driver?.drivingLicenceNumber || 'N/A'}</Text>
+            <Text style={styles.infoLabel}>RC Expiry</Text>
+            <Text style={styles.infoValue}>{rcExpiry || 'N/A'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Licence Expiry</Text>
-            <Text style={styles.infoValue}>{driver?.drivingLicenceExpiry || 'N/A'}</Text>
+            <Text style={styles.infoLabel}>Insurance Expiry</Text>
+            <Text style={styles.infoValue}>{insuranceExpiry || 'N/A'}</Text>
           </View>
         </View>
 
@@ -140,7 +186,7 @@ export const MyProfileScreen = () => {
           onPress={() => navigation.navigate(ROUTES.PROFILE)}
           activeOpacity={0.8}
         >
-          <Text style={styles.editProfileBtnText}>Edit Profile & Upload Documents</Text>
+          <Text style={styles.editProfileBtnText}>Edit Profile Details</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

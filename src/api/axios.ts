@@ -17,10 +17,18 @@ apiClient.interceptors.request.use(
     try {
       const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        if (typeof (config.headers as any).set === 'function') {
+          (config.headers as any).set('Authorization', `Bearer ${token}`);
+        } else {
+          (config.headers as any)['Authorization'] = `Bearer ${token}`;
+        }
       }
       if (config.data instanceof FormData) {
-        delete config.headers['Content-Type'];
+        if (typeof (config.headers as any).set === 'function') {
+          (config.headers as any).set('Content-Type', 'multipart/form-data');
+        } else {
+          (config.headers as any)['Content-Type'] = 'multipart/form-data';
+        }
       }
     } catch (e) {
       console.error('Error fetching token from storage in interceptor:', e);

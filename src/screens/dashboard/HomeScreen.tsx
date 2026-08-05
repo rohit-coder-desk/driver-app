@@ -916,7 +916,6 @@ export const HomeScreen = () => {
             provider={PROVIDER_GOOGLE}
             style={StyleSheet.absoluteFill}
             initialRegion={region}
-            showsUserLocation={true}
             showsMyLocationButton={false}
           >
             {location && (

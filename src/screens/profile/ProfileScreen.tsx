@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   SafeAreaView,
   Platform,
   KeyboardAvoidingView,
   StatusBar,
-  PermissionsAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
@@ -22,93 +19,116 @@ import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 import { DatePickerModal } from '../../components/common/DatePickerModal';
 import { ROUTES } from '../../constants/routes';
 
-interface SelectedFile {
-  uri: string;
-  type: string;
-  fileName: string;
-}
-
-interface UploadCardProps {
-  label: string;
-  fileText: string;
-  onPress: () => void;
-}
-
 interface InputFieldProps {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
+  editable?: boolean;
 }
 
-const UploadCard = memo(({ label, fileText, onPress }: UploadCardProps) => (
-  <View style={styles.uploadCard}>
-    <Text style={styles.documentLabel}>{label}</Text>
-    <View style={styles.uploadRow}>
-      <TouchableOpacity style={styles.uploadBtn} onPress={onPress} activeOpacity={0.7}>
-        <Text style={styles.uploadBtnText}>Upload Image</Text>
-      </TouchableOpacity>
-      <Text style={styles.fileNameText} numberOfLines={1}>
-        {fileText}
-      </Text>
-    </View>
-  </View>
-));
-
-const InputField = memo(({ label, value, onChangeText, placeholder }: InputFieldProps) => (
+const InputField = memo(({ label, value, onChangeText, placeholder, editable = true }: InputFieldProps) => (
   <View style={styles.inputContainer}>
     <Text style={styles.inputLabel}>{label}</Text>
     <TextInput
-      style={styles.textInput}
+      style={[styles.textInput, !editable && styles.disabledInput]}
       placeholder={placeholder}
       placeholderTextColor="#94a3b8"
       value={value}
       onChangeText={onChangeText}
-      returnKeyType="next"
-      blurOnSubmit={false}
+      editable={editable}
     />
   </View>
+));
+
+const MultilineInputField = memo(({ label, value, onChangeText, placeholder }: InputFieldProps) => (
+  <View style={styles.inputContainer}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <TextInput
+      style={[styles.textInput, styles.multilineInput]}
+      placeholder={placeholder}
+      placeholderTextColor="#94a3b8"
+      value={value}
+      onChangeText={onChangeText}
+      multiline={true}
+      numberOfLines={3}
+      textAlignVertical="top"
+    />
+  </View>
+));
+
+const DatePickerInputField = memo(({ label, value, onPress, placeholder }: { label: string; value: string; onPress: () => void; placeholder: string }) => (
+  <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.inputContainer}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <View style={styles.dateInputWrapper}>
+      <Text style={[styles.dateInputText, !value && styles.dateInputPlaceholder]}>
+        {value || placeholder}
+      </Text>
+      <Text style={styles.dateCalendarIcon}>📅</Text>
+    </View>
+  </TouchableOpacity>
 ));
 
 export const ProfileScreen = () => {
   const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
 
-  // Selected Files state
-  const [avatar, setAvatar] = useState<SelectedFile | null>(null);
-  const [aadhaarFront, setAadhaarFront] = useState<SelectedFile | null>(null);
-  const [aadhaarBack, setAadhaarBack] = useState<SelectedFile | null>(null);
-  const [licenceFront, setLicenceFront] = useState<SelectedFile | null>(null);
-  const [licenceBack, setLicenceBack] = useState<SelectedFile | null>(null);
-  const [rc, setRc] = useState<SelectedFile | null>(null);
-  const [insurance, setInsurance] = useState<SelectedFile | null>(null);
-
-  // Text Inputs state
+  // Personal Info
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [vehicleBrand, setVehicleBrand] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
-  const [vehiclePlate, setVehiclePlate] = useState('');
-  const [vehicleColor, setVehicleColor] = useState('');
+
+  // Driver Info
   const [drivingLicenceNumber, setDrivingLicenceNumber] = useState('');
   const [drivingLicenceExpiry, setDrivingLicenceExpiry] = useState('');
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
+
+  // Address Info
+  const [city, setCity] = useState('');
+  const [address, setAddress] = useState('');
+
+  // Vehicle Info
+  const [vehicleBrand, setVehicleBrand] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [rcExpiry, setRcExpiry] = useState('');
+  const [insuranceExpiry, setInsuranceExpiry] = useState('');
+
+  // Date Picker active target
+  const [activeDatePickerField, setActiveDatePickerField] = useState<'drivingLicenceExpiry' | 'rcExpiry' | 'insuranceExpiry' | null>(null);
 
   const [loading, setLoading] = useState(false);
 
-  // Sync details from profile on mount/update
+  // Sync profile details on mount/update
   useEffect(() => {
     if (driver) {
       setName(driver.name || '');
       setPhone(driver.phone || '');
       setEmail(driver.email || '');
-      setVehicleBrand(driver.vehicleBrand || '');
-      setVehicleModel(driver.vehicleModel || '');
-      setVehiclePlate(driver.vehiclePlate || '');
-      setVehicleColor(driver.vehicleColor || '');
+      setCity(driver.city || '');
+      setAddress(driver.address || '');
       setDrivingLicenceNumber(driver.drivingLicenceNumber || '');
       setDrivingLicenceExpiry(driver.drivingLicenceExpiry || '');
+      setVehicleBrand(driver.vehicleBrand || '');
+      setVehicleModel(driver.vehicleModel || '');
+      setVehicleColor(driver.vehicleColor || '');
+      setVehiclePlate(driver.vehiclePlate || '');
+
+      let docObj: Record<string, any> = {};
+      if (driver.documentStatuses) {
+        if (typeof driver.documentStatuses === 'string') {
+          try {
+            docObj = JSON.parse(driver.documentStatuses);
+          } catch (e) {
+            docObj = {};
+          }
+        } else if (typeof driver.documentStatuses === 'object') {
+          docObj = driver.documentStatuses;
+        }
+      }
+
+      setRcExpiry(driver.rcExpiry || docObj.rcExpiry || docObj.rcPhoto?.expiry || '');
+      setInsuranceExpiry(driver.insuranceExpiry || docObj.insuranceExpiry || docObj.insurancePhoto?.expiry || '');
     }
   }, [driver]);
 
@@ -148,144 +168,6 @@ export const ProfileScreen = () => {
     setModalConfig((prev) => ({ ...prev, visible: false, onPrimaryAction: undefined }));
   }, [modalConfig]);
 
-  const openImagePicker = useCallback((field: string, useCamera: boolean) => {
-    const options = {
-      mediaType: 'photo' as const,
-      quality: 0.8,
-    };
-
-    const handleResponse = (response: any) => {
-      if (response.didCancel) return;
-      if (response.errorMessage) {
-        showModal('error', 'Error', response.errorMessage);
-        return;
-      }
-      if (response.assets && response.assets.length > 0) {
-        const asset = response.assets[0];
-        const selected = {
-          uri: asset.uri || '',
-          type: asset.type || 'image/jpeg',
-          fileName: asset.fileName || `${field}.jpg`,
-        };
-
-        if (field === 'avatarPhoto') setAvatar(selected);
-        else if (field === 'identityCardPhoto') setAadhaarFront(selected);
-        else if (field === 'identityCardBackPhoto') setAadhaarBack(selected);
-        else if (field === 'drivingLicencePhoto') setLicenceFront(selected);
-        else if (field === 'drivingLicenceBackPhoto') setLicenceBack(selected);
-        else if (field === 'rcPhoto') setRc(selected);
-        else if (field === 'insurancePhoto') setInsurance(selected);
-      }
-    };
-
-    if (useCamera) {
-      if (Platform.OS === 'android') {
-        PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
-          .then((granted) => {
-            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-              launchCamera(options, handleResponse);
-            } else {
-              showModal('error', 'Camera Permission Denied', 'Camera permission is required to capture photos.');
-            }
-          })
-          .catch((err) => {
-            console.warn('Camera permission error:', err);
-            showModal('error', 'Error', 'Failed to request camera permission.');
-          });
-      } else {
-        launchCamera(options, handleResponse);
-      }
-    } else {
-      launchImageLibrary(options, handleResponse);
-    }
-  }, [showModal]);
-
-  const selectImage = useCallback((field: string) => {
-    Alert.alert(
-      'Select Image Source',
-      'Choose how you want to upload your photo:',
-      [
-        {
-          text: '📷 Take Photo',
-          onPress: () => openImagePicker(field, true),
-        },
-        {
-          text: '🖼️ Choose from Gallery',
-          onPress: () => openImagePicker(field, false),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  }, [openImagePicker]);
-
-  const handleUpload = useCallback(async () => {
-    const hasTextChanges =
-      name !== (driver?.name || '') ||
-      phone !== (driver?.phone || '') ||
-      email !== (driver?.email || '') ||
-      vehicleBrand !== (driver?.vehicleBrand || '') ||
-      vehicleModel !== (driver?.vehicleModel || '') ||
-      vehiclePlate !== (driver?.vehiclePlate || '') ||
-      vehicleColor !== (driver?.vehicleColor || '') ||
-      drivingLicenceNumber !== (driver?.drivingLicenceNumber || '') ||
-      drivingLicenceExpiry !== (driver?.drivingLicenceExpiry || '');
-
-    const hasNewUploads =
-      avatar || aadhaarFront || aadhaarBack || licenceFront || licenceBack || rc || insurance;
-
-    if (!hasNewUploads && !hasTextChanges) {
-      showModal('info', 'No Changes', 'Please enter profile or vehicle details or select a document to upload.');
-      return;
-    }
-
-    const formData = new FormData();
-
-    if (avatar) formData.append('avatarPhoto', { uri: avatar.uri, type: avatar.type, name: avatar.fileName } as any);
-    if (aadhaarFront) formData.append('identityCardPhoto', { uri: aadhaarFront.uri, type: aadhaarFront.type, name: aadhaarFront.fileName } as any);
-    if (aadhaarBack) formData.append('identityCardBackPhoto', { uri: aadhaarBack.uri, type: aadhaarBack.type, name: aadhaarBack.fileName } as any);
-    if (licenceFront) formData.append('drivingLicencePhoto', { uri: licenceFront.uri, type: licenceFront.type, name: licenceFront.fileName } as any);
-    if (licenceBack) formData.append('drivingLicenceBackPhoto', { uri: licenceBack.uri, type: licenceBack.type, name: licenceBack.fileName } as any);
-    if (rc) formData.append('rcPhoto', { uri: rc.uri, type: rc.type, name: rc.fileName } as any);
-    if (insurance) formData.append('insurancePhoto', { uri: insurance.uri, type: insurance.type, name: insurance.fileName } as any);
-
-    if (name) formData.append('name', name);
-    if (phone) formData.append('phone', phone);
-    if (email) formData.append('email', email);
-    if (vehicleBrand) formData.append('vehicleBrand', vehicleBrand);
-    if (vehicleModel) formData.append('vehicleModel', vehicleModel);
-    if (vehiclePlate) formData.append('vehiclePlate', vehiclePlate);
-    if (vehicleColor) formData.append('vehicleColor', vehicleColor);
-    if (drivingLicenceNumber) formData.append('drivingLicenceNumber', drivingLicenceNumber);
-    if (drivingLicenceExpiry) formData.append('drivingLicenceExpiry', drivingLicenceExpiry);
-
-    setLoading(true);
-    try {
-      await DriverService.uploadDocuments(formData);
-      await refreshProfile();
-
-      const isDocUpload = !!(avatar || aadhaarFront || aadhaarBack || licenceFront || licenceBack || rc || insurance || drivingLicenceNumber !== (driver?.drivingLicenceNumber || '') || drivingLicenceExpiry !== (driver?.drivingLicenceExpiry || ''));
-      const successMessage = isDocUpload
-        ? 'Profile documents submitted successfully. Waiting for approval.'
-        : 'Profile updated successfully!';
-
-      showModal('accept', 'Success', successMessage, () => navigation.goBack());
-    } catch (error: any) {
-      const errorMessage = typeof error === 'string' ? error : error?.message || error?.error || 'Could not save profile details.';
-      showModal('error', 'Submission Failed', errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [avatar, aadhaarBack, aadhaarFront, driver, drivingLicenceExpiry, drivingLicenceNumber, email, insurance, licenceBack, licenceFront, name, navigation, phone, refreshProfile, rc, showModal, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
-
-  const getFileText = useCallback((selected: SelectedFile | null, serverPath: string | undefined | null) => {
-    if (selected) return selected.fileName;
-    if (serverPath) return 'Already Uploaded';
-    return 'No file chosen';
-  }, []);
-
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -299,94 +181,159 @@ export const ProfileScreen = () => {
     }
   }, [navigation]);
 
-  const uploadItems = useMemo(
-    () => [
-      {
-        key: 'avatarPhoto',
-        label: 'Selfie / Profile Photo',
-        fileText: getFileText(avatar, driver?.avatarPhoto),
-      },
-      {
-        key: 'identityCardPhoto',
-        label: 'Aadhaar Front',
-        fileText: getFileText(aadhaarFront, driver?.identityCardPhoto),
-      },
-      {
-        key: 'identityCardBackPhoto',
-        label: 'Aadhaar Back',
-        fileText: getFileText(aadhaarBack, driver?.identityCardBackPhoto),
-      },
-      {
-        key: 'drivingLicencePhoto',
-        label: 'License Front',
-        fileText: getFileText(licenceFront, driver?.drivingLicencePhoto),
-      },
-      {
-        key: 'drivingLicenceBackPhoto',
-        label: 'License Back',
-        fileText: getFileText(licenceBack, driver?.drivingLicenceBackPhoto),
-      },
-      {
-        key: 'rcPhoto',
-        label: 'RC Document',
-        fileText: getFileText(rc, driver?.rcPhoto),
-      },
-      {
-        key: 'insurancePhoto',
-        label: 'Vehicle Insurance',
-        fileText: getFileText(insurance, driver?.insurancePhoto),
-      },
-    ], [avatar, aadhaarBack, aadhaarFront, getFileText, insurance, licenceBack, licenceFront, rc, driver]);
+  const handleDateSelect = useCallback((dateStr: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const inputFields = useMemo(
-    () => [
-      {
-        key: 'vehicleBrand',
-        label: 'Vehicle Brand',
-        placeholder: 'e.g. Toyota',
-        value: vehicleBrand,
-        onChangeText: setVehicleBrand,
-      },
-      {
-        key: 'vehicleModel',
-        label: 'Vehicle Model',
-        placeholder: 'e.g. Camry',
-        value: vehicleModel,
-        onChangeText: setVehicleModel,
-      },
-      {
-        key: 'vehiclePlate',
-        label: 'Vehicle Plate',
-        placeholder: 'ABC-1234',
-        value: vehiclePlate,
-        onChangeText: setVehiclePlate,
-      },
-      {
-        key: 'vehicleColor',
-        label: 'Vehicle Color',
-        placeholder: 'e.g. White',
-        value: vehicleColor,
-        onChangeText: setVehicleColor,
-      },
-      {
-        key: 'drivingLicenceNumber',
-        label: 'Driving Licence Number',
-        placeholder: 'e.g. DL-123456789',
-        value: drivingLicenceNumber,
-        onChangeText: setDrivingLicenceNumber,
-      },
-      {
-        key: 'drivingLicenceExpiry',
-        label: 'Driving Licence Expiry',
-        placeholder: 'YYYY-MM-DD',
-        value: drivingLicenceExpiry,
-        onChangeText: setDrivingLicenceExpiry,
-      },
-    ], [drivingLicenceExpiry, drivingLicenceNumber, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const selDate = new Date(y, m - 1, d);
+      if (selDate < today) {
+        showModal('error', 'Invalid Date', 'Expiry date cannot be in the past.');
+        setActiveDatePickerField(null);
+        return;
+      }
+    }
+
+    if (activeDatePickerField === 'drivingLicenceExpiry') {
+      setDrivingLicenceExpiry(dateStr);
+    } else if (activeDatePickerField === 'rcExpiry') {
+      setRcExpiry(dateStr);
+    } else if (activeDatePickerField === 'insuranceExpiry') {
+      setInsuranceExpiry(dateStr);
+    }
+    setActiveDatePickerField(null);
+  }, [activeDatePickerField, showModal]);
+
+  const activeDatePickerValue = useMemo(() => {
+    if (activeDatePickerField === 'drivingLicenceExpiry') return drivingLicenceExpiry;
+    if (activeDatePickerField === 'rcExpiry') return rcExpiry;
+    if (activeDatePickerField === 'insuranceExpiry') return insuranceExpiry;
+    return '';
+  }, [activeDatePickerField, drivingLicenceExpiry, insuranceExpiry, rcExpiry]);
+
+  const activeDatePickerTitle = useMemo(() => {
+    if (activeDatePickerField === 'drivingLicenceExpiry') return 'Licence Expiry Date';
+    if (activeDatePickerField === 'rcExpiry') return 'RC Expiry Date';
+    if (activeDatePickerField === 'insuranceExpiry') return 'Insurance Expiry Date';
+    return 'Select Expiry Date';
+  }, [activeDatePickerField]);
+
+  const handleSaveProfile = useCallback(async () => {
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim();
+    const trimmedLicence = drivingLicenceNumber.trim();
+    const trimmedCity = city.trim();
+    const trimmedAddress = address.trim();
+    const trimmedBrand = vehicleBrand.trim();
+    const trimmedModel = vehicleModel.trim();
+    const trimmedColor = vehicleColor.trim();
+    const trimmedPlate = vehiclePlate.trim();
+
+    if (!trimmedName) {
+      showModal('error', 'Validation Error', 'Please enter your full name.');
+      return;
+    }
+    if (!trimmedPhone) {
+      showModal('error', 'Validation Error', 'Please enter your phone number.');
+      return;
+    }
+    if (!trimmedEmail) {
+      showModal('error', 'Validation Error', 'Please enter your email address.');
+      return;
+    }
+
+    // Validate Expiry Dates (cannot be in the past)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const validateExpiry = (dateStr: string, fieldName: string) => {
+      if (!dateStr) return true;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return true;
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const expDate = new Date(y, m - 1, d);
+      if (expDate < today) {
+        showModal('error', 'Validation Error', `${fieldName} cannot be in the past.`);
+        return false;
+      }
+      return true;
+    };
+
+    if (!validateExpiry(drivingLicenceExpiry, 'Driving Licence Expiry')) return;
+    if (!validateExpiry(rcExpiry, 'RC Expiry')) return;
+    if (!validateExpiry(insuranceExpiry, 'Vehicle Insurance Expiry')) return;
+
+    const docStatuses = driver?.documentStatuses as Record<string, any> | undefined;
+
+    const hasChanges =
+      trimmedName !== (driver?.name || '') ||
+      trimmedPhone !== (driver?.phone || '') ||
+      trimmedEmail !== (driver?.email || '') ||
+      trimmedCity !== (driver?.city || '') ||
+      trimmedAddress !== (driver?.address || '') ||
+      trimmedLicence !== (driver?.drivingLicenceNumber || '') ||
+      drivingLicenceExpiry !== (driver?.drivingLicenceExpiry || '') ||
+      trimmedBrand !== (driver?.vehicleBrand || '') ||
+      trimmedModel !== (driver?.vehicleModel || '') ||
+      trimmedColor !== (driver?.vehicleColor || '') ||
+      trimmedPlate !== (driver?.vehiclePlate || '') ||
+      rcExpiry !== (docStatuses?.rcExpiry || '') ||
+      insuranceExpiry !== (docStatuses?.insuranceExpiry || '');
+
+    if (!hasChanges) {
+      showModal('info', 'No Changes', 'No profile changes detected.');
+      return;
+    }
+
+    console.log('📤 [FRONTEND SUBMITTING PROFILE]:', {
+      name: trimmedName,
+      phone: trimmedPhone,
+      email: trimmedEmail,
+      city: trimmedCity,
+      address: trimmedAddress,
+      drivingLicenceNumber: trimmedLicence,
+      drivingLicenceExpiry,
+      vehicleBrand: trimmedBrand,
+      vehicleModel: trimmedModel,
+      vehicleColor: trimmedColor,
+      vehiclePlate: trimmedPlate,
+      rcExpiry,
+      insuranceExpiry,
+    });
+
+    const formData = new FormData();
+    formData.append('name', trimmedName);
+    formData.append('phone', trimmedPhone);
+    formData.append('email', trimmedEmail);
+    formData.append('city', trimmedCity);
+    formData.append('address', trimmedAddress);
+    formData.append('drivingLicenceNumber', trimmedLicence);
+    formData.append('drivingLicenceExpiry', drivingLicenceExpiry);
+    formData.append('vehicleBrand', trimmedBrand);
+    formData.append('vehicleModel', trimmedModel);
+    formData.append('vehicleColor', trimmedColor);
+    formData.append('vehiclePlate', trimmedPlate);
+    formData.append('rcExpiry', rcExpiry);
+    formData.append('insuranceExpiry', insuranceExpiry);
+
+    setLoading(true);
+    try {
+      await DriverService.uploadDocuments(formData);
+      await refreshProfile();
+      showModal('accept', 'Success', 'Profile details updated successfully!', () => navigation.goBack());
+    } catch (error: any) {
+      const errorMessage = typeof error === 'string' ? error : error?.message || error?.error || 'Could not update profile details.';
+      showModal('error', 'Update Failed', errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [address, city, driver, drivingLicenceExpiry, drivingLicenceNumber, email, insuranceExpiry, name, navigation, phone, rcExpiry, refreshProfile, showModal, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <Loader visible={loading} message="Submitting profile documents..." />
+      <Loader visible={loading} message="Updating profile details..." />
+      <StatusBar backgroundColor="#0B2246" barStyle="light-content" />
 
       {/* Header bar */}
       <View style={styles.header}>
@@ -398,7 +345,7 @@ export const ProfileScreen = () => {
         >
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Update Documents</Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -411,23 +358,24 @@ export const ProfileScreen = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews={true}
-          scrollEventThrottle={16}
-          nestedScrollEnabled={false}
         >
+          {/* Personal Information */}
           <Text style={styles.sectionHeader}>Personal Information</Text>
+
           <InputField
             label="Full Name"
             placeholder="Enter your full name"
             value={name}
             onChangeText={setName}
           />
+
           <InputField
             label="Phone Number"
             placeholder="Enter phone number"
             value={phone}
             onChangeText={setPhone}
           />
+
           <InputField
             label="Email Address"
             placeholder="Enter email address"
@@ -435,30 +383,8 @@ export const ProfileScreen = () => {
             onChangeText={setEmail}
           />
 
-          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Documents & Photos</Text>
-
-          {uploadItems.map((item) => (
-            <UploadCard
-              key={item.key}
-              label={item.label}
-              fileText={item.fileText}
-              onPress={() => selectImage(item.key)}
-            />
-          ))}
-
-          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Vehicle Details</Text>
-
-          {inputFields.slice(0, 4).map((field) => (
-            <InputField
-              key={field.key}
-              label={field.label}
-              placeholder={field.placeholder}
-              value={field.value}
-              onChangeText={field.onChangeText}
-            />
-          ))}
-
-          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Licence Details</Text>
+          {/* Driver Information */}
+          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Driver Information</Text>
 
           <InputField
             label="Driving Licence Number"
@@ -467,30 +393,83 @@ export const ProfileScreen = () => {
             onChangeText={setDrivingLicenceNumber}
           />
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setDatePickerVisible(true)}
-          >
-            <View pointerEvents="none">
-              <InputField
-                label="Driving Licence Expiry"
-                placeholder="Select Expiry Date (YYYY-MM-DD)"
-                value={drivingLicenceExpiry}
-                onChangeText={() => { }}
-                editable={false}
-              />
-            </View>
-          </TouchableOpacity>
+          <DatePickerInputField
+            label="Driving Licence Expiry"
+            placeholder="Select Licence Expiry Date (YYYY-MM-DD)"
+            value={drivingLicenceExpiry}
+            onPress={() => setActiveDatePickerField('drivingLicenceExpiry')}
+          />
+
+          {/* Address Information */}
+          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Address Information</Text>
+
+          <InputField
+            label="City"
+            placeholder="Enter your city"
+            value={city}
+            onChangeText={setCity}
+          />
+
+          <MultilineInputField
+            label="Address"
+            placeholder="Enter full address"
+            value={address}
+            onChangeText={setAddress}
+          />
+
+          {/* Vehicle Information */}
+          <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Vehicle Information</Text>
+
+          <InputField
+            label="Vehicle Brand"
+            placeholder="e.g. Toyota"
+            value={vehicleBrand}
+            onChangeText={setVehicleBrand}
+          />
+
+          <InputField
+            label="Vehicle Model"
+            placeholder="e.g. Camry"
+            value={vehicleModel}
+            onChangeText={setVehicleModel}
+          />
+
+          <InputField
+            label="Vehicle Color"
+            placeholder="e.g. White"
+            value={vehicleColor}
+            onChangeText={setVehicleColor}
+          />
+
+          <InputField
+            label="Vehicle Plate Number"
+            placeholder="e.g. ABC-1234"
+            value={vehiclePlate}
+            onChangeText={setVehiclePlate}
+          />
+
+          <DatePickerInputField
+            label="RC Expiry"
+            placeholder="Select RC Expiry Date (YYYY-MM-DD)"
+            value={rcExpiry}
+            onPress={() => setActiveDatePickerField('rcExpiry')}
+          />
+
+          <DatePickerInputField
+            label="Vehicle Insurance Expiry"
+            placeholder="Select Insurance Expiry Date (YYYY-MM-DD)"
+            value={insuranceExpiry}
+            onPress={() => setActiveDatePickerField('insuranceExpiry')}
+          />
 
           {/* Submit Button */}
           <TouchableOpacity
             style={styles.submitBtn}
-            onPress={handleUpload}
+            onPress={handleSaveProfile}
             activeOpacity={0.8}
           >
             <Text style={styles.submitBtnText}>Save Changes</Text>
           </TouchableOpacity>
-
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -504,10 +483,10 @@ export const ProfileScreen = () => {
       />
 
       <DatePickerModal
-        visible={datePickerVisible}
-        value={drivingLicenceExpiry}
-        onSelect={(dateStr) => setDrivingLicenceExpiry(dateStr)}
-        onClose={() => setDatePickerVisible(false)}
+        visible={!!activeDatePickerField}
+        value={activeDatePickerValue}
+        onSelect={handleDateSelect}
+        onClose={() => setActiveDatePickerField(null)}
       />
     </SafeAreaView>
   );
@@ -518,21 +497,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#061A3A',
   },
-  keyboardAvoiding: {
-    flex: 1,
-  },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#0B2246',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#0B2246',
     borderBottomWidth: 1,
     borderBottomColor: '#1E3A8A',
   },
   backButton: {
-    marginTop: 40,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -550,52 +526,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
+  keyboardAvoiding: {
+    flex: 1,
+  },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 36,
   },
   sectionHeader: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 16,
-  },
-  uploadCard: {
-    backgroundColor: '#0B2246',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-  },
-  documentLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 10,
-  },
-  uploadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  uploadBtn: {
-    backgroundColor: '#0D2A54',
-    borderWidth: 1,
-    borderColor: '#0066FF',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 12,
-  },
-  uploadBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0066FF',
-  },
-  fileNameText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#94A3B8',
   },
   inputContainer: {
     marginBottom: 16,
@@ -607,32 +549,62 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   textInput: {
-    height: 48,
+    backgroundColor: '#0D2A54',
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 12,
     paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 14,
     color: '#FFFFFF',
+  },
+  disabledInput: {
+    opacity: 0.6,
+  },
+  multilineInput: {
+    height: 80,
+    paddingTop: 12,
+  },
+  dateInputWrapper: {
     backgroundColor: '#0D2A54',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateInputText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  dateInputPlaceholder: {
+    color: '#94A3B8',
+  },
+  dateCalendarIcon: {
+    fontSize: 16,
   },
   submitBtn: {
+    marginTop: 24,
+    borderRadius: 16,
     backgroundColor: '#0066FF',
-    borderRadius: 14,
-    height: 52,
-    alignItems: 'center',
+    paddingVertical: 16,
     justifyContent: 'center',
-    marginTop: 20,
+    alignItems: 'center',
     shadowColor: '#0066FF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 6,
   },
   submitBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
 });
+
 export default ProfileScreen;
