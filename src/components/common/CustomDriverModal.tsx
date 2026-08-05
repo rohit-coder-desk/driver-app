@@ -30,7 +30,8 @@ export type DriverModalType =
   | 'cancel'
   | 'error'
   | 'warning'
-  | 'info';
+  | 'info'
+  | 'location_required';
 
 export interface CustomDriverModalProps {
   visible: boolean;
@@ -345,6 +346,7 @@ export const CustomDriverModal: React.FC<CustomDriverModalProps> = ({
           primaryBtnBg: '#D97706',
           renderIcon: (s: number) => <WarningIcon color="#D97706" size={s} />,
         };
+      case 'location_required':
       case 'navigate_pickup':
       case 'arrived_pickup':
         return {

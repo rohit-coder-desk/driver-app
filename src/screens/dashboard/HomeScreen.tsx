@@ -805,6 +805,29 @@ export const HomeScreen = () => {
           setIsOnline(false);
           return;
         }
+
+        // Location permission check before going online
+        const hasLocationPermission = await requestLocationPermission();
+        if (!hasLocationPermission) {
+          showDriverModal(
+            'location_required',
+            'Location Access Required',
+            'Location permission is required for live tracking and receiving ride offers. Please enable location access to go online.',
+            'Enable Location',
+            () => {
+              if (Platform.OS === 'android') {
+                Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS').catch(() => {
+                  Linking.openSettings();
+                });
+              } else {
+                Linking.openSettings();
+              }
+            },
+            'Cancel'
+          );
+          setIsOnline(false);
+          return;
+        }
       }
 
       const nextStatus = value ? 'online' : 'offline';
@@ -845,6 +868,20 @@ export const HomeScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    setDrawerOpen(false);
+    if (activeOrder) {
+      showDriverModal(
+        'warning',
+        'Active Delivery in Progress',
+        'You are currently handling an active delivery. Complete the current order before logging out.',
+        'Got it'
+      );
+      return;
+    }
+    logout();
   };
 
   const getFullUrl = (path: string) => {
@@ -1310,10 +1347,7 @@ export const HomeScreen = () => {
             <View style={styles.drawerFooter}>
               <TouchableOpacity
                 style={styles.logoutBtn}
-                onPress={() => {
-                  setDrawerOpen(false);
-                  logout();
-                }}
+                onPress={handleLogout}
                 activeOpacity={0.8}
               >
                 <Text style={styles.logoutBtnText}>Logout</Text>

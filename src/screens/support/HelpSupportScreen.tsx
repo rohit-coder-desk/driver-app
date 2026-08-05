@@ -33,7 +33,7 @@ export const HelpSupportScreen = () => {
   };
 
   const callDispatch = () => {
-    Linking.openURL('tel:+18005550199').catch(() => {
+    Linking.openURL('').catch(() => {
       openSupportEmail();
     });
   };

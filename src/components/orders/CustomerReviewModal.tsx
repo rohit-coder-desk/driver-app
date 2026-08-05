@@ -20,11 +20,13 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
 }) => {
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
   useEffect(() => {
     if (visible) {
       setRating(0);
       setReview('');
+      setErrorMsg('');
     }
   }, [visible]);
 
@@ -42,19 +44,22 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
         return '⭐ (1/5) - Very Bad';
       case 0:
       default:
-        return '☆ (0/5) - Select Rating';
+        return '☆ (0/5) - Select Rating (Min 1 Star)';
     }
   };
 
   const handleStarPress = (starIndex: number) => {
-    if (rating === starIndex) {
-      setRating(0);
-    } else {
-      setRating(starIndex);
+    setRating(starIndex);
+    if (errorMsg) {
+      setErrorMsg('');
     }
   };
 
   const handleSubmit = () => {
+    if (rating < 1) {
+      setErrorMsg('Please select at least 1 star rating to submit');
+      return;
+    }
     onSubmit(rating, review.trim());
   };
 
@@ -95,6 +100,12 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
             {getRatingLabel(rating)}
           </Text>
         </View>
+
+        {errorMsg ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>⚠️ {errorMsg}</Text>
+          </View>
+        ) : null}
 
         {/* Feedback Input */}
         <View style={styles.inputContainer}>
@@ -155,6 +166,21 @@ const styles = StyleSheet.create({
   },
   zeroRatingText: {
     color: '#64748B',
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   inputContainer: {
     width: '100%',

@@ -1,4 +1,4 @@
-thiimport React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { Button } from './Button';
