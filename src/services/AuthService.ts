@@ -46,6 +46,15 @@ export const AuthService = {
     }
   },
 
+  resetPassword: async (payload: { phone: string; otp: string; newPassword: string }) => {
+    try {
+      const response = await authApi.resetPassword(payload);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || 'Failed to reset password. Please check details and try again.';
+    }
+  },
+
   saveToken: async (token: string) => {
     await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
   },

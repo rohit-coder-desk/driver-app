@@ -130,7 +130,7 @@ export const LoginScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => navigation.navigate(ROUTES.REGISTER)}
+              onPress={() => navigation.navigate(ROUTES.FORGOT_PASSWORD)}
               activeOpacity={0.8}
             >
               <Text style={styles.forgotText}>Forgot Password?</Text>

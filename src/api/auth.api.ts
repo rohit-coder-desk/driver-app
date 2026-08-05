@@ -17,4 +17,8 @@ export const authApi = {
   verifyOtp: (payload: VerifyOtpPayload) => {
     return apiClient.post('/api/drivers/verify-otp', payload);
   },
+
+  resetPassword: (payload: { phone: string; otp: string; newPassword: string }) => {
+    return apiClient.post('/api/drivers/reset-password', payload);
+  },
 };

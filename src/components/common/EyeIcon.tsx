@@ -37,8 +37,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   eyeShell: {
-    width: 19,
-    height: 19,
+    width: 16,
+    height: 16,
     borderWidth: 2,
     borderTopLeftRadius: 12,
     borderBottomRightRadius: 12,
