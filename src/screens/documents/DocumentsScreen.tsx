@@ -12,6 +12,7 @@ import {
   Alert,
   PermissionsAndroid,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
@@ -21,6 +22,7 @@ import { COLORS } from '../../constants/colors';
 import { API_BASE_URL } from '../../config/env';
 import { Loader } from '../../components/common/Loader';
 import { CustomDriverModal } from '../../components/common/CustomDriverModal';
+import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
 
 interface SelectedFile {
   uri: string;
@@ -58,6 +60,15 @@ export const DocumentsScreen = () => {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const cardLayoutsRef = useRef<Record<string, number>>({});
   const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState<Record<string, boolean>>({});
+
+  const handleImageLoadStart = (key: string) => {
+    setImageLoading((prev) => ({ ...prev, [key]: true }));
+  };
+
+  const handleImageLoadEnd = (key: string) => {
+    setImageLoading((prev) => ({ ...prev, [key]: false }));
+  };
 
   // Handle auto-scroll & card highlighting when navigating via targetDocKey
   useEffect(() => {
@@ -449,8 +460,16 @@ export const DocumentsScreen = () => {
                       source={{ uri: displayUri }}
                       style={styles.documentImage}
                       resizeMode="cover"
+                      onLoadStart={() => handleImageLoadStart(item.key)}
+                      onLoadEnd={() => handleImageLoadEnd(item.key)}
                       onError={() => handleImageError(item.key)}
                     />
+
+                    {imageLoading[item.key] && (
+                      <View style={styles.imageLoadingOverlay}>
+                        <ActivityIndicator size="small" color="#0066FF" />
+                      </View>
+                    )}
 
                     {/* Badge Overlay */}
                     {cardState === 'rejected' && (
@@ -476,7 +495,9 @@ export const DocumentsScreen = () => {
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.emptyDocument}>
-                    <Text style={styles.emptyText}>No file uploaded</Text>
+                    <Text style={styles.emptyPlaceholderIcon}>🆔</Text>
+                    <Text style={styles.emptyText}>No photo uploaded yet</Text>
+                    <Text style={styles.emptySubtext}>Tap button below to select photo</Text>
                   </View>
                 )}
 
@@ -560,68 +581,13 @@ export const DocumentsScreen = () => {
       />
 
       {/* Full-Screen Image Viewer Modal */}
-      <Modal
+      <ImagePreviewModal
         visible={previewModal.visible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeImagePreview}
-      >
-        <View style={styles.fullScreenModalBg}>
-          <StatusBar backgroundColor="#0A1220" barStyle="light-content" translucent={true} />
-          
-          {/* Header with Back Button & Close Button */}
-          <View style={[styles.fullScreenHeaderContainer, { paddingTop: Platform.OS === 'ios' ? 50 : Math.max(StatusBar.currentHeight || 0, 24) + 10 }]}>
-            <TouchableOpacity
-              style={styles.fullScreenBackBtn}
-              onPress={closeImagePreview}
-              activeOpacity={0.8}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            >
-              <Text style={styles.fullScreenBackBtnText}>←</Text>
-            </TouchableOpacity>
-
-            <View style={styles.fullScreenTitleContainer}>
-              <Text style={styles.fullScreenTitleText}>{previewModal.title}</Text>
-              {previewModal.status === 'approved' && (
-                <Text style={styles.fullScreenStatusApprovedText}>✓ Approved</Text>
-              )}
-              {previewModal.status === 'pending' && (
-                <Text style={styles.fullScreenStatusPendingText}>⏳ Under Review</Text>
-              )}
-              {previewModal.status === 'rejected' && (
-                <Text style={styles.fullScreenStatusRejectedText}>✕ Rejected</Text>
-              )}
-              {previewModal.status === 'selected' && (
-                <Text style={styles.fullScreenStatusSelectedText}>Selected to upload</Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.fullScreenCloseBtn}
-              onPress={closeImagePreview}
-              activeOpacity={0.8}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            >
-              <Text style={styles.fullScreenCloseText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Full Screen Image */}
-          <TouchableOpacity
-            style={styles.fullScreenImageContent}
-            onPress={closeImagePreview}
-            activeOpacity={1}
-          >
-            {previewModal.uri ? (
-              <Image
-                source={{ uri: previewModal.uri }}
-                style={styles.fullScreenImage}
-                resizeMode="contain"
-              />
-            ) : null}
-          </TouchableOpacity>
-        </View>
-      </Modal>
+        imageUri={previewModal.uri}
+        title={previewModal.title}
+        status={previewModal.status}
+        onClose={closeImagePreview}
+      />
     </SafeAreaView>
   );
 };
@@ -752,16 +718,16 @@ const styles = StyleSheet.create({
   documentCard: {
     width: '48%',
     backgroundColor: '#0B2246',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#1E3A8A',
     padding: 14,
     marginBottom: 16,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
   },
   documentCardRejected: {
     borderColor: '#EF4444',
@@ -777,9 +743,12 @@ const styles = StyleSheet.create({
   imageWrapper: {
     position: 'relative',
     width: '100%',
-    height: 120,
-    borderRadius: 12,
+    height: 140,
+    borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#0D2A54',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   imageWrapperSelected: {
     borderWidth: 2,
@@ -801,6 +770,23 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#0D2A54',
+  },
+  imageLoadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(11, 34, 70, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyPlaceholderIcon: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    color: '#64748B',
+    fontSize: 10,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginTop: 2,
   },
   failedImageWrapper: {
     backgroundColor: '#0D2A54',
@@ -1050,19 +1036,8 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     marginTop: 2,
   },
-  fullScreenCloseBtn: {
+  fullScreenHeaderSpacer: {
     width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1E293B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  fullScreenCloseText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
   fullScreenImageContent: {
     flex: 1,

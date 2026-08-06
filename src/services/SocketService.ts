@@ -8,25 +8,32 @@ class SocketService {
 
   private setupSocketListeners(socketInstance: Socket) {
     socketInstance.on('connect', () => {
-      console.log(`[STEP-07] [SOCKET APP] Connected successfully! Socket ID=${socketInstance.id}`);
+      if (__DEV__) {
+        console.log(`[SOCKET APP] Connected successfully! Socket ID=${socketInstance.id}`);
+      }
       if (this.currentDriverId) {
-        console.log(`[STEP-08] [SOCKET APP] Emitting join_driver for room: driver_${this.currentDriverId}`);
+        if (__DEV__) {
+          console.log(`[SOCKET APP] Emitting join_driver for room: driver_${this.currentDriverId}`);
+        }
         socketInstance.emit('join_driver', this.currentDriverId);
       }
     });
 
     socketInstance.on('disconnect', (reason) => {
-      console.log('[SOCKET APP] Disconnected. Reason:', reason);
+      if (__DEV__) {
+        console.log('[SOCKET APP] Disconnected. Reason:', reason);
+      }
     });
 
     socketInstance.on('connect_error', (error) => {
-      console.warn(`[STEP-06-ERR] ❌ [SOCKET APP] Connection error: ${error.message}`);
+      console.warn(`❌ [SOCKET APP] Connection error: ${error.message}`);
     });
 
     socketInstance.on('driver_updated', (data) => {
-      console.log(`[STEP-09] [SOCKET APP] Received driver_updated event: ${JSON.stringify(data)}`);
+      if (__DEV__) {
+        console.log(`[SOCKET APP] Received driver_updated event`);
+      }
       const callbacks = this.listeners.get('driver_updated');
-      console.log(`[STEP-10] [SOCKET APP] Notifying ${callbacks ? callbacks.length : 0} registered listeners...`);
       if (callbacks) {
         callbacks.forEach((cb) => {
           try {
@@ -47,7 +54,9 @@ class SocketService {
     const baseUrl = API_BASE_URL.replace(/\/+$/, '');
 
     if (!this.socket) {
-      console.log(`[STEP-06] [SOCKET APP] Initializing Socket.IO connection to: ${baseUrl} for Driver ID=${this.currentDriverId}`);
+      if (__DEV__) {
+        console.log(`[SOCKET APP] Initializing Socket.IO connection to: ${baseUrl}`);
+      }
       this.socket = io(baseUrl, {
         transports: ['polling', 'websocket'],
         reconnection: true,
@@ -59,11 +68,15 @@ class SocketService {
       this.setupSocketListeners(this.socket);
     } else {
       if (!this.socket.connected) {
-        console.log('⚡ [SOCKET APP] Reconnecting existing socket instance...');
+        if (__DEV__) {
+          console.log('⚡ [SOCKET APP] Reconnecting existing socket instance...');
+        }
         this.socket.connect();
       }
       if (this.currentDriverId && this.socket.connected) {
-        console.log(`🚗 [SOCKET APP] Emitting join_driver for driverId: ${this.currentDriverId}`);
+        if (__DEV__) {
+          console.log(`🚗 [SOCKET APP] Emitting join_driver for driverId: ${this.currentDriverId}`);
+        }
         this.socket.emit('join_driver', this.currentDriverId);
       }
     }

@@ -74,7 +74,7 @@ export const MyOrdersScreen = () => {
   const activeOrders = orders.filter((order) => ACTIVE_STATUSES.includes(order.status));
   const historyOrders = orders.filter((order) => !ACTIVE_STATUSES.includes(order.status));
 
-  const renderOrderCard = (order: OrderData) => (
+  const renderOrderCard = useCallback((order: OrderData) => (
     <View key={`order-${order.id}`} style={styles.orderCard}>
       <View style={styles.orderRow}>
         <Text style={styles.orderCode}>{order.code ? `#${order.code}` : `Order ${order.id}`}</Text>
@@ -86,12 +86,12 @@ export const MyOrdersScreen = () => {
       <Text style={styles.orderText}>{order.pickup?.address || 'Pickup location'}</Text>
       <Text style={styles.orderLabel}>Dropoff</Text>
       <Text style={styles.orderText}>{order.dropoff?.address || 'Dropoff location'}</Text>
-        <View style={styles.orderSummaryRow}>
-          <Text style={styles.orderSummaryText}>Distance: {order.estimatedDistance ?? 'N/A'}</Text>
-          {showPrice ? (
-            <Text style={styles.orderSummaryText}>Price: ₹{order.price ?? order.calculatedPrice ?? '0'}</Text>
-          ) : null}
-        </View>
+      <View style={styles.orderSummaryRow}>
+        <Text style={styles.orderSummaryText}>Distance: {order.estimatedDistance ?? 'N/A'}</Text>
+        {showPrice ? (
+          <Text style={styles.orderSummaryText}>Price: ₹{order.price ?? order.calculatedPrice ?? '0'}</Text>
+        ) : null}
+      </View>
       <TouchableOpacity
         style={styles.viewDetailsBtn}
         onPress={() => navigation.navigate(ROUTES.ORDER_DETAILS, { order })}
@@ -100,7 +100,7 @@ export const MyOrdersScreen = () => {
         <Text style={styles.viewDetailsText}>View Details</Text>
       </TouchableOpacity>
     </View>
-  );
+  ), [navigation, showPrice]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -127,9 +127,7 @@ export const MyOrdersScreen = () => {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Active Orders</Text>
-          {loading && !refreshing ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={styles.loader} />
-          ) : activeOrders.length === 0 ? (
+          {activeOrders.length === 0 && !loading ? (
             <Text style={styles.emptyText}>No active orders at the moment.</Text>
           ) : (
             activeOrders.map(renderOrderCard)
@@ -138,9 +136,7 @@ export const MyOrdersScreen = () => {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Order History</Text>
-          {loading && !refreshing ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={styles.loader} />
-          ) : historyOrders.length === 0 ? (
+          {historyOrders.length === 0 && !loading ? (
             <Text style={styles.emptyText}>No past orders yet.</Text>
           ) : (
             historyOrders.map(renderOrderCard)

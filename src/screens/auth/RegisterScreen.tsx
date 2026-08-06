@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,10 @@ import {
   ScrollView,
   Modal,
   Image,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
-import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
 import { EyeIcon } from '../../components/common/EyeIcon';
@@ -46,30 +44,28 @@ export const RegisterScreen = () => {
     // 1. Name Validation
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Firstname is required.');
+      setError('First name is required.');
       return;
     }
     if (trimmedName.length < 2) {
-      setError('Firstname must be at least 2 characters long.');
+      setError('First name must be at least 2 characters long.');
       return;
     }
 
     // 2. Username Validation
     const trimmedUsername = username.trim();
     if (!trimmedUsername) {
-      setError('Lastname is required.');
+      setError('Last name is required.');
       return;
     }
     if (trimmedUsername.length < 3) {
-      setError('Lastname must be at least 3 characters long.');
+      setError('Last name must be at least 3 characters long.');
       return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
-      setError('Username can only contain letters, numbers, and underscores.');
+      setError('Last name can only contain letters, numbers, and underscores.');
       return;
     }
-
-    const trimemail = email.trim()
 
     // 3. Mobile Number Validation
     let rawPhone = phone.trim().replace(/\s+/g, '');
@@ -82,7 +78,6 @@ export const RegisterScreen = () => {
     if (rawPhone.startsWith('+')) {
       finalPhone = rawPhone;
     } else {
-      // Remove leading zeros if typed
       rawPhone = rawPhone.replace(/^0+/, '');
       if (!/^\d{10}$/.test(rawPhone)) {
         setError('Mobile Number must be exactly 10 digits.');
@@ -91,16 +86,14 @@ export const RegisterScreen = () => {
       finalPhone = `${selectedCountry.code}${rawPhone}`;
     }
 
-    // 4. Email Validation (if provided)
+    // 4. Email Validation
     const trimmedEmail = email.trim();
-    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Please enter a valid email address.');
+    if (!trimmedEmail) {
+      setError('Email is required.');
       return;
     }
-
-    // Check if email is empty
-    if (!email.trim()) {
-      setError('Email is required.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -124,7 +117,6 @@ export const RegisterScreen = () => {
         undefined,
         trimmedUsername
       );
-      // Navigate to OTP verification screen on success
       navigation.navigate(ROUTES.OTP_VERIFICATION);
     } catch (err: any) {
       setError(err.message || err || 'Registration failed. Please check details.');
@@ -134,148 +126,166 @@ export const RegisterScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#061A3A" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoiding}
-      >
-        <ScrollView
-          scrollEnabled={false}
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Loader visible={loading} message="Registering Driver..." />
+      <View style={styles.innerContainer}>
+        <Loader visible={loading} message="Registering Driver..." />
 
-          {/* Screen Title */}
-          <View style={styles.header}>
-            <View style={styles.logoBadge}>
-              <Image
-                source={require('../../assets/images/logo.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.title}>Register Driver</Text>
-            <Text style={styles.subtitle}>Join CDX Last Mile Fleet</Text>
-          </View>
-
-        {/* Form Card */}
-        <View style={styles.card}>
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Full Name */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter first name"
-              placeholderTextColor="#94a3b8"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
+        {/* Top Header & Branding */}
+        <View style={styles.header}>
+          <View style={styles.logoBadge}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
             />
           </View>
+          <Text style={styles.title}>Register Driver</Text>
+          <Text style={styles.subtitle}>Join CDX Last Mile Fleet</Text>
+        </View>
 
-          {/* Username */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter last name"
-              placeholderTextColor="#94a3b8"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {/* Form Container */}
+        <View style={styles.formContainer}>
+          {/* First Name & Last Name Row */}
+          <View style={styles.nameRow}>
+            <View style={styles.halfInputLeft}>
+              <Text style={styles.label}>First Name *</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="First name"
+                  placeholderTextColor="#64748B"
+                  value={name}
+                  onChangeText={(txt) => {
+                    setName(txt);
+                    setError(null);
+                  }}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            <View style={styles.halfInputRight}>
+              <Text style={styles.label}>Last Name *</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Last name"
+                  placeholderTextColor="#64748B"
+                  value={username}
+                  onChangeText={(txt) => {
+                    setUsername(txt);
+                    setError(null);
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
           </View>
 
-          {/* Mobile Number with Country Code Dropdown */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mobile Number *</Text>
-            <View style={styles.phoneInputRow}>
-              <TouchableOpacity
-                style={styles.countryPickerBtn}
-                onPress={() => setCountryModalVisible(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-                <Text style={styles.countryCodeText}>{selectedCountry.code}</Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
+          {/* Mobile Number */}
+          <Text style={styles.fieldMargin}>Mobile Number *</Text>
+          <View style={styles.phoneInputRow}>
+            <TouchableOpacity
+              style={styles.countryPickerBtn}
+              onPress={() => setCountryModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+              <Text style={styles.countryCodeText}>{selectedCountry.code}</Text>
+              <Text style={styles.dropdownArrow}>▼</Text>
+            </TouchableOpacity>
 
+            <View style={styles.phoneInputWrapper}>
               <TextInput
-                style={styles.phoneInput}
-                placeholder="Enter mobile number"
-                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                placeholder="Mobile number"
+                placeholderTextColor="#64748B"
                 keyboardType="phone-pad"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(txt) => {
+                  setPhone(txt);
+                  setError(null);
+                }}
                 maxLength={10}
               />
             </View>
           </View>
 
           {/* Email Address */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
+          <Text style={styles.fieldMargin}>Email Address *</Text>
+          <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
-              placeholder="Enter email address"
-              placeholderTextColor="#94a3b8"
+              placeholder="Email address"
+              placeholderTextColor="#64748B"
               keyboardType="email-address"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(txt) => {
+                setEmail(txt);
+                setError(null);
+              }}
               autoCapitalize="none"
             />
           </View>
 
           {/* Password */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password *</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Enter password"
-                placeholderTextColor="#94a3b8"
-                secureTextEntry={securePassword}
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TouchableOpacity onPress={() => setSecurePassword(!securePassword)} style={styles.eyeButton}>
-                <EyeIcon visible={!securePassword} />
-              </TouchableOpacity>
-            </View>
+          <Text style={styles.fieldMargin}>Password *</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#64748B"
+              secureTextEntry={securePassword}
+              value={password}
+              onChangeText={(txt) => {
+                setPassword(txt);
+                setError(null);
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setSecurePassword(!securePassword)}
+              activeOpacity={0.7}
+            >
+              <EyeIcon visible={!securePassword} />
+            </TouchableOpacity>
           </View>
 
           {/* Register Button */}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleRegister}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>Register</Text>
+          <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} activeOpacity={0.85}>
+            <Text style={styles.registerBtnText}>Register</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Footer Link */}
-        <View style={styles.footer}>
-          <TouchableOpacity onPress={() => navigation.navigate(ROUTES.LOGIN)}>
-            <Text style={styles.footerLink}>
-              Already have an account? <Text style={styles.footerLinkHighlight}>Login</Text>
+          {/* Login Link */}
+          <TouchableOpacity
+            style={styles.loginLink}
+            onPress={() => navigation.navigate(ROUTES.LOGIN)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.loginLinkText}>
+              Already have an account? <Text style={styles.loginHighlight}>Login</Text>
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+
+        {/* Footer */}
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>Dispatcher Logistics Partner Platform</Text>
+        </View>
+      </View>
 
       {/* Country Code Selection Modal */}
       <Modal
@@ -318,7 +328,6 @@ export const RegisterScreen = () => {
         </TouchableOpacity>
       </Modal>
     </KeyboardAvoidingView>
-    </SafeAreaView>
   );
 };
 
@@ -326,110 +335,126 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#061A3A',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 0,
   },
-  keyboardAvoiding: {
+  innerContainer: {
     flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    paddingVertical: Platform.OS === 'ios' ? 24 : 16,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: 20,
   },
   logoBadge: {
-    width: 70,
-    height: 70,
-    borderRadius: 18,
+    width: 84,
+    height: 84,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
     shadowColor: '#0066FF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 8,
   },
   logoImage: {
-    width: 46,
-    height: 46,
+    width: 58,
+    height: 58,
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    marginBottom: 4,
-    lineHeight: 30,
+    marginBottom: 8,
+    lineHeight: 36,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '400',
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 24,
   },
-  card: {
-    backgroundColor: '#0B2246',
-    borderRadius: 18,
-    padding: 18,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-  },
-  errorContainer: {
+  errorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
     borderColor: '#EF4444',
     borderRadius: 12,
     padding: 10,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   errorText: {
     color: '#FCA5A5',
     fontSize: 13,
-    textAlign: 'center',
     fontWeight: '500',
     fontFamily: 'Inter-Medium',
+    textAlign: 'center',
   },
-  inputGroup: {
-    marginBottom: 12,
+  formContainer: {
+    width: '100%',
+    backgroundColor: '#0B2246',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  halfInputLeft: {
+    flex: 1,
+    marginRight: 6,
+  },
+  halfInputRight: {
+    flex: 1,
+    marginLeft: 6,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
     fontFamily: 'Inter-Medium',
     color: '#94A3B8',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  input: {
+  fieldMargin: {
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
+    color: '#94A3B8',
+    marginBottom: 8,
+    marginTop: 14,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 14,
+    borderRadius: 14,
+    height: 54,
+    paddingHorizontal: 16,
+  },
+  input: {
+    flex: 1,
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '400',
     fontFamily: 'Inter-Regular',
   },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   countryPickerBtn: {
     flexDirection: 'row',
@@ -437,127 +462,88 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 12,
-    minWidth: 48,
+    borderRadius: 14,
+    height: 54,
+    paddingHorizontal: 14,
+    marginRight: 8,
   },
   flagText: {
-    fontSize: 18,
+    fontSize: 20,
     marginRight: 6,
   },
   countryCodeText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
-    marginRight: 4,
+    marginRight: 6,
   },
   dropdownArrow: {
     color: '#94A3B8',
-    fontSize: 10,
+    fontSize: 12,
   },
-  phoneInput: {
+  phoneInputWrapper: {
     flex: 1,
-    backgroundColor: '#0D2A54',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 14,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '400',
-    fontFamily: 'Inter-Regular',
-  },
-  passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 14,
+    borderRadius: 14,
+    height: 54,
+    paddingHorizontal: 16,
   },
-  passwordInput: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '400',
-    fontFamily: 'Inter-Regular',
-    height: '100%',
-    padding: 0,
-  },
-  eyeButton: {
-    padding: 6,
+  eyeBtn: {
+    padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
   },
-  eyeIconContainer: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  eyeOuter: {
-    width: 20,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#94A3B8',
-    backgroundColor: 'transparent',
-  },
-  eyeInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#94A3B8',
-    position: 'absolute',
-  },
-  eyeSlash: {
-    width: 24,
-    height: 2,
-    backgroundColor: '#EF4444',
-    position: 'absolute',
-    transform: [{ rotate: '-45deg' }],
-  },
-  button: {
+  registerBtn: {
     backgroundColor: '#0066FF',
     borderRadius: 14,
-    height: 50,
-    justifyContent: 'center',
+    height: 54,
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
+    marginTop: 20,
     shadowColor: '#0066FF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
   },
-  buttonText: {
+  registerBtnText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
-    letterSpacing: 0.3,
   },
-  footer: {
+  loginLink: {
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 14,
+    minHeight: 40,
+    justifyContent: 'center',
   },
-  footerLink: {
+  loginLinkText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
     color: '#94A3B8',
-    fontSize: 14,
   },
-  footerLinkHighlight: {
+  loginHighlight: {
     color: '#0066FF',
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
+  },
+  footerContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  footerText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   modalOverlay: {
     flex: 1,
@@ -611,21 +597,6 @@ const styles = StyleSheet.create({
     color: '#0066FF',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingRight: 16,
-    marginBottom: 12,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  backButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0066FF',
   },
 });
 

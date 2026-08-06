@@ -17,6 +17,7 @@ import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
 import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 import { DatePickerModal } from '../../components/common/DatePickerModal';
+import { CalendarIcon } from '../../components/common/Icons';
 import { ROUTES } from '../../constants/routes';
 
 interface InputFieldProps {
@@ -64,7 +65,7 @@ const DatePickerInputField = memo(({ label, value, onPress, placeholder }: { lab
       <Text style={[styles.dateInputText, !value && styles.dateInputPlaceholder]}>
         {value || placeholder}
       </Text>
-      <Text style={styles.dateCalendarIcon}>📅</Text>
+      <CalendarIcon color="#94A3B8" size={20} />
     </View>
   </TouchableOpacity>
 ));

@@ -35,17 +35,21 @@ export const LocationService = {
   },
 
   /**
-   * Get current position once
+   * Get current position once with high accuracy and network fallback
    */
-  getCurrentPosition: (): Promise<LatLng> => {
+  getCurrentPosition: (options?: { timeout?: number; maximumAge?: number }): Promise<LatLng> => {
     return new Promise((resolve, reject) => {
       if (!Geolocation || typeof Geolocation.getCurrentPosition !== 'function') {
         return reject(new Error('Geolocation service unavailable'));
       }
 
+      const timeout = options?.timeout || 10000;
+      const maximumAge = options?.maximumAge ?? 5000;
+
+      // 1. Attempt High-Accuracy GPS hardware fix
       Geolocation.getCurrentPosition(
         (position: any) => {
-          if (position?.coords) {
+          if (position?.coords?.latitude && position?.coords?.longitude) {
             resolve({
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -54,8 +58,25 @@ export const LocationService = {
             reject(new Error('Invalid position coordinates'));
           }
         },
-        (error: any) => reject(error),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
+        (error: any) => {
+          console.warn('GPS hardware high accuracy location failed/timed out, trying Network location provider:', error);
+          // 2. Fallback to Network Provider (essential for physical devices indoors)
+          Geolocation.getCurrentPosition(
+            (fallbackPos: any) => {
+              if (fallbackPos?.coords?.latitude && fallbackPos?.coords?.longitude) {
+                resolve({
+                  latitude: fallbackPos.coords.latitude,
+                  longitude: fallbackPos.coords.longitude,
+                });
+              } else {
+                reject(error);
+              }
+            },
+            (fallbackErr: any) => reject(fallbackErr),
+            { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
+          );
+        },
+        { enableHighAccuracy: true, timeout, maximumAge }
       );
     });
   },

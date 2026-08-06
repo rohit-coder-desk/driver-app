@@ -33,9 +33,7 @@ export const HelpSupportScreen = () => {
   };
 
   const callDispatch = () => {
-    Linking.openURL('').catch(() => {
-      openSupportEmail();
-    });
+    openSupportEmail();
   };
 
   const handleCategoryPress = (categoryId: string) => {

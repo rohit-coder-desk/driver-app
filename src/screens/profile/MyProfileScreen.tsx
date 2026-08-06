@@ -11,14 +11,138 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import {
+  PermissionsAndroid,
+  Alert,
+} from 'react-native';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../constants/routes';
 import { API_BASE_URL } from '../../config/env';
+import { ZoomableImageViewer } from '../../components/common/ZoomableImageViewer';
+import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
+import { DriverService } from '../../services/DriverService';
+import { Loader } from '../../components/common/Loader';
 
 export const MyProfileScreen = () => {
-  const { driver } = useAuth();
+  const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
+  const [uploading, setUploading] = useState(false);
+
+  const requestCameraPermission = async (): Promise<boolean> => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'App requires camera access to take your profile photo.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('Camera permission request error:', err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const uploadNewAvatarPhoto = async (file: { uri: string; type: string; name: string }) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatarPhoto', {
+        uri: file.uri,
+        type: file.type || 'image/jpeg',
+        name: file.name || 'profile_photo.jpg',
+      } as any);
+
+      await DriverService.uploadDocuments(formData);
+      const updated = await refreshProfile();
+      const newPath = updated?.avatarPhoto || driver?.avatarPhoto;
+      if (newPath) {
+        setFullImageModal((prev) => ({
+          ...prev,
+          uri: getFullUrl(newPath),
+        }));
+      }
+      Alert.alert('Success', 'Profile photo updated successfully!');
+    } catch (err: any) {
+      const msg = typeof err === 'string' ? err : err?.message || 'Failed to update profile photo.';
+      Alert.alert('Upload Failed', msg);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSelectProfilePhoto = async (useCamera: boolean) => {
+    if (useCamera) {
+      const hasCamPerm = await requestCameraPermission();
+      if (!hasCamPerm) {
+        Alert.alert('Permission Denied', 'Camera permission is required to take a photo.');
+        return;
+      }
+    }
+
+    const options: any = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      saveToPhotos: false,
+    };
+
+    const callback = (response: any) => {
+      if (response.didCancel) return;
+      if (response.errorCode || response.errorMessage) {
+        Alert.alert('Error', response.errorMessage || 'Image selection failed.');
+        return;
+      }
+
+      if (response.assets && response.assets.length > 0) {
+        const asset = response.assets[0];
+        if (asset.uri) {
+          uploadNewAvatarPhoto({
+            uri: asset.uri,
+            type: asset.type || 'image/jpeg',
+            name: asset.fileName || 'profile_photo.jpg',
+          });
+        }
+      }
+    };
+
+    if (useCamera) {
+      launchCamera(options, callback);
+    } else {
+      launchImageLibrary(options, callback);
+    }
+  };
+
+  const promptChangeProfilePhoto = () => {
+    Alert.alert(
+      'Change Profile Photo',
+      'Choose how you would like to upload your profile photo:',
+      [
+        {
+          text: '📷 Take Photo with Camera',
+          onPress: () => handleSelectProfilePhoto(true),
+        },
+        {
+          text: '🖼️ Choose from Gallery',
+          onPress: () => handleSelectProfilePhoto(false),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
 
   // Modal for viewing profile photo in full-screen
   const [fullImageModal, setFullImageModal] = useState<{
@@ -56,6 +180,7 @@ export const MyProfileScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
+      <Loader visible={uploading} message="Uploading Profile Photo..." />
 
       {/* Header Bar */}
       <View style={styles.header}>
@@ -86,29 +211,41 @@ export const MyProfileScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Driver Main Profile Card */}
         <View style={styles.profileCard}>
-          <TouchableOpacity
-            style={styles.avatarContainer}
-            onPress={() => {
-              if (driver?.avatarPhoto) {
-                setFullImageModal({
-                  visible: true,
-                  uri: getFullUrl(driver.avatarPhoto),
-                  title: `${driver?.name || 'Driver'}'s Profile Photo`,
-                });
-              }
-            }}
-            activeOpacity={driver?.avatarPhoto ? 0.8 : 1}
-          >
-            {driver?.avatarPhoto ? (
-              <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitials}>
-                  {driver?.name ? driver.name.charAt(0).toUpperCase() : 'D'}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.avatarWrapper}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={() => {
+                if (driver?.avatarPhoto) {
+                  setFullImageModal({
+                    visible: true,
+                    uri: getFullUrl(driver.avatarPhoto),
+                    title: `${driver?.name || 'Driver'}'s Profile Photo`,
+                  });
+                } else {
+                  promptChangeProfilePhoto();
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              {driver?.avatarPhoto ? (
+                <Image source={{ uri: getFullUrl(driver.avatarPhoto) }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitials}>
+                    {driver?.name ? driver.name.charAt(0).toUpperCase() : 'D'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cameraIconBadge}
+              onPress={promptChangeProfilePhoto}
+              activeOpacity={0.8}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.cameraIconText}>📷</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.driverName}>{driver?.name || 'Driver'}</Text>
           <Text style={styles.driverPhone}>{driver?.phone || 'No Phone Number'}</Text>
@@ -219,57 +356,12 @@ export const MyProfileScreen = () => {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Full-Screen Image Viewer Modal */}
-      <Modal
+      <ImagePreviewModal
         visible={fullImageModal.visible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setFullImageModal({ visible: false, uri: '', title: '' })}
-      >
-        <View style={styles.fullScreenModalBg}>
-          <StatusBar backgroundColor="#0A1220" barStyle="light-content" translucent={true} />
-
-          {/* Notch-safe Header with Back Button & Close Button */}
-          <View style={[styles.fullScreenHeaderContainer, { paddingTop: Platform.OS === 'ios' ? 50 : Math.max(StatusBar.currentHeight || 0, 24) + 10 }]}>
-            <TouchableOpacity
-              style={styles.fullScreenBackBtn}
-              onPress={() => setFullImageModal({ visible: false, uri: '', title: '' })}
-              activeOpacity={0.8}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            >
-              <Text style={styles.fullScreenBackBtnText}>←</Text>
-            </TouchableOpacity>
-
-            <View style={styles.fullScreenTitleContainer}>
-              <Text style={styles.fullScreenTitleText}>{fullImageModal.title}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.fullScreenCloseBtn}
-              onPress={() => setFullImageModal({ visible: false, uri: '', title: '' })}
-              activeOpacity={0.8}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            >
-              <Text style={styles.fullScreenCloseText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Full Screen Image Container */}
-          <TouchableOpacity
-            style={styles.fullScreenImageContent}
-            onPress={() => setFullImageModal({ visible: false, uri: '', title: '' })}
-            activeOpacity={1}
-          >
-            {!!fullImageModal.uri && (
-              <Image
-                source={{ uri: fullImageModal.uri }}
-                style={styles.fullScreenImage}
-                resizeMode="contain"
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-      </Modal>
+        imageUri={fullImageModal.uri}
+        title={fullImageModal.title}
+        onClose={() => setFullImageModal({ visible: false, uri: '', title: '' })}
+      />
     </SafeAreaView>
   );
 };
@@ -534,20 +626,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  fullScreenCloseBtn: {
+  fullScreenHeaderSpacer: {
     width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0D2A54',
+  },
+  fullScreenChangePhotoBtn: {
+    backgroundColor: '#0066FF',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  fullScreenChangePhotoText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+  avatarWrapper: {
+    position: 'relative',
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#0066FF',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderWidth: 2,
+    borderColor: '#0B2246',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  fullScreenCloseText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+  cameraIconText: {
+    fontSize: 14,
+  },
+  changePhotoBtn: {
+    backgroundColor: 'rgba(0, 102, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: '#0066FF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  changePhotoBtnText: {
+    color: '#0066FF',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   fullScreenImageContent: {
     flex: 1,

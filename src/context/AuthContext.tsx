@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { AuthService } from '../services/AuthService';
 import { DriverService } from '../services/DriverService';
 import { socketService } from '../services/SocketService';
@@ -30,9 +30,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshProfile = useCallback(async () => {
     try {
-      console.log(' [AUTH CONTEXT] Calling refreshProfile()...');
+      if (__DEV__) {
+        console.log(' [AUTH CONTEXT] Calling refreshProfile()...');
+      }
       const updatedProfile = await DriverService.getProfile();
-      console.log(' [AUTH CONTEXT] Profile Refreshed! ID:', updatedProfile?.id, '| authStatus:', updatedProfile?.authorizationStatus, '| docStatuses:', JSON.stringify(updatedProfile?.documentStatuses));
+      if (__DEV__) {
+        console.log(' [AUTH CONTEXT] Profile Refreshed! ID:', updatedProfile?.id);
+      }
       await AuthService.saveDriver(updatedProfile);
       setDriver(updatedProfile);
       return updatedProfile;
@@ -66,12 +70,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Real-time socket listener for driver status & document updates
   useEffect(() => {
     if (token && driver?.id) {
-      console.log(`[STEP-06] [AUTH CONTEXT] Initializing socket subscription for Driver ID=${driver.id}`);
+      if (__DEV__) {
+        console.log(`[STEP-06] [AUTH CONTEXT] Initializing socket subscription for Driver ID=${driver.id}`);
+      }
       socketService.connect(driver.id);
       socketService.joinDriverRoom(driver.id);
 
       const unsubscribe = socketService.onDriverUpdated((data) => {
-        console.log(`[STEP-11] [AUTH CONTEXT] Listener received 'driver_updated' event! Payload: ${JSON.stringify(data)}`);
+        if (__DEV__) {
+          console.log(`[STEP-11] [AUTH CONTEXT] Listener received 'driver_updated' event!`);
+        }
         refreshProfile().catch((err) => console.warn('❌ [AUTH CONTEXT] refreshProfile error:', err));
       });
 
@@ -83,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, driver?.id, refreshProfile]);
 
-  const login = async (username: string, password?: string) => {
+  const login = useCallback(async (username: string, password?: string) => {
     try {
       const data = await AuthService.login({
         name: username,
@@ -132,9 +140,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const errMsg = typeof error === 'string' ? error : (error?.message || 'Invalid username or password.');
       throw new Error(errMsg);
     }
-  };
+  }, []);
 
-  const register = async (
+  const register = useCallback(async (
     name: string,
     phone: string,
     email?: string,
@@ -155,17 +163,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (response.otp) {
       setOtpCodeForTesting(response.otp);
     }
-  };
+  }, []);
 
-  const sendOtp = async (phone: string) => {
+  const sendOtp = useCallback(async (phone: string) => {
     const response = await AuthService.sendOtp(phone);
     setUnverifiedPhone(phone);
     if (response.otp) {
       setOtpCodeForTesting(response.otp);
     }
-  };
+  }, []);
 
-  const verifyOtp = async (phone: string, otp: string) => {
+  const verifyOtp = useCallback(async (phone: string, otp: string) => {
     const response = await AuthService.verifyOtp({ phone, otp });
 
     // Save state on successful verification
@@ -176,34 +184,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setDriver(response.driver);
     setUnverifiedPhone(null);
     setOtpCodeForTesting(null);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     socketService.disconnect();
     await AuthService.logout();
     setToken(null);
     setDriver(null);
     setUnverifiedPhone(null);
     setOtpCodeForTesting(null);
-  };
+  }, []);
+
+  const setUnverifiedPhoneHandler = useCallback((phone: string | null) => {
+    setUnverifiedPhone(phone);
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      token,
+      driver,
+      isLoading,
+      unverifiedPhone,
+      otpCodeForTesting,
+      login,
+      register,
+      sendOtp,
+      verifyOtp,
+      logout,
+      refreshProfile,
+      setUnverifiedPhone: setUnverifiedPhoneHandler,
+    }),
+    [
+      token,
+      driver,
+      isLoading,
+      unverifiedPhone,
+      otpCodeForTesting,
+      login,
+      register,
+      sendOtp,
+      verifyOtp,
+      logout,
+      refreshProfile,
+      setUnverifiedPhoneHandler,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        token,
-        driver,
-        isLoading,
-        unverifiedPhone,
-        otpCodeForTesting,
-        login,
-        register,
-        sendOtp,
-        verifyOtp,
-        logout,
-        refreshProfile,
-        setUnverifiedPhone,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

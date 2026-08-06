@@ -193,6 +193,46 @@ export const CategoryVectorIcon: React.FC<{ type: string; color?: string; size?:
   }
 };
 
+export const CalendarIcon: React.FC<IconProps> = ({ color = '#94A3B8', size = 20 }) => (
+  <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}>
+    <View style={{
+      width: size * 0.8,
+      height: size * 0.8,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: color,
+      justifyContent: 'flex-start',
+    }}>
+      {/* Top Header line */}
+      <View style={{
+        width: '100%',
+        height: 1.5,
+        backgroundColor: color,
+        marginTop: size * 0.2,
+      }} />
+      {/* Binder pins */}
+      <View style={{
+        position: 'absolute',
+        top: -3,
+        left: size * 0.18,
+        width: 2,
+        height: 4,
+        backgroundColor: color,
+        borderRadius: 1,
+      }} />
+      <View style={{
+        position: 'absolute',
+        top: -3,
+        right: size * 0.18,
+        width: 2,
+        height: 4,
+        backgroundColor: color,
+        borderRadius: 1,
+      }} />
+    </View>
+  </View>
+);
+
 const styles = StyleSheet.create({
   iconBase: {
     justifyContent: 'center',

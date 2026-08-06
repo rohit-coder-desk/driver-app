@@ -49,9 +49,7 @@ export const SupportCategoryDetailScreen = () => {
   };
 
   const callDispatch = () => {
-    Linking.openURL('tel:+18005550199').catch(() => {
-      openSupportEmail();
-    });
+    openSupportEmail();
   };
 
   const handleActionClick = (actionRoute?: string) => {

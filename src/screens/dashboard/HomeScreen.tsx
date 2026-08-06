@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { ServiceAreaConfig } from '../../types/serviceArea.types';
 import { DEFAULT_SERVICE_AREA, clampRegionToBounds, isRegionOutOfBounds } from '../../utils/mapBoundaryUtils';
 import { DriverService } from '../../services/DriverService';
+import { LocationService } from '../../services/LocationService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
 import { RouteService, LatLng } from '../../services/RouteService';
 import { OrderRequestModal } from '../../components/orders/OrderRequestModal';
@@ -50,7 +51,6 @@ export const HomeScreen = () => {
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shouldRenderDrawer, setShouldRenderDrawer] = useState(false);
-  const [onlineSeconds, setOnlineSeconds] = useState(0);
 
   // Order & Offer state
   const [activeOrder, setActiveOrder] = useState<OrderData | null>(null);
@@ -132,14 +132,14 @@ export const HomeScreen = () => {
   // Animated Value for custom Drawer
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const openDrawer = () => {
+  const openDrawer = useCallback(() => {
     setShouldRenderDrawer(true);
     setDrawerOpen(true);
-  };
+  }, []);
 
-  const closeDrawer = () => {
+  const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
-  };
+  }, []);
 
   // Toggle Side Drawer Animation
   useEffect(() => {
@@ -161,20 +161,6 @@ export const HomeScreen = () => {
       });
     }
   }, [drawerOpen]);
-
-  // Online ticking stopwatch logic
-  useEffect(() => {
-    let intervalId: any;
-    if (isOnline) {
-      setOnlineSeconds(0);
-      intervalId = setInterval(() => {
-        setOnlineSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setOnlineSeconds(0);
-    }
-    return () => clearInterval(intervalId);
-  }, [isOnline]);
 
   // Keep isOnline & activeOrder refs updated to avoid stale closure issues in AppState listener
   const isOnlineRef = useRef(isOnline);
@@ -218,14 +204,6 @@ export const HomeScreen = () => {
       subscription.remove();
     };
   }, []);
-
-  const formatOnlineTime = (totalSeconds: number) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    const pad = (num: number) => String(num).padStart(2, '0');
-    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-  };
 
   const hasPromptedLocationSettingsRef = useRef(false);
 
@@ -290,10 +268,12 @@ export const HomeScreen = () => {
 
   // Wait for live physical device GPS fix to set driver location state
   useEffect(() => {
-    console.log('[LOCATION-DEBUG] [DRIVER-PROFILE-LOADED]:', { id: driver?.id, dbLat: driver?.latitude, dbLng: driver?.longitude });
+    if (__DEV__) {
+      console.log('[LOCATION-DEBUG] [DRIVER-PROFILE-LOADED]:', { id: driver?.id, dbLat: driver?.latitude, dbLng: driver?.longitude });
+    }
   }, [driver?.id]);
 
-  const syncDriverLocation = async (lat: number, lng: number) => {
+  const syncDriverLocation = useCallback(async (lat: number, lng: number) => {
     if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
 
     let finalLat = lat;
@@ -305,18 +285,31 @@ export const HomeScreen = () => {
       finalLng = MOHALI_COORDS.longitude;
     }
 
-    console.log(`[LOCATION-DEBUG] [GPS-SYNC-SUCCESS] Device Lat: ${finalLat}, Lng: ${finalLng}`);
-    const nextLoc = { latitude: finalLat, longitude: finalLng };
-    setLocation(nextLoc);
+    if (__DEV__) {
+      console.log(`[LOCATION-DEBUG] [GPS-SYNC-SUCCESS] Device Lat: ${finalLat}, Lng: ${finalLng}`);
+    }
 
+    // Only update local React UI state if location moved >= 3 meters (~0.00003 deg) to prevent micro-jitter UI re-renders
+    setLocation((prevLoc) => {
+      if (
+        prevLoc &&
+        Math.abs(prevLoc.latitude - finalLat) < 0.00003 &&
+        Math.abs(prevLoc.longitude - finalLng) < 0.00003
+      ) {
+        return prevLoc;
+      }
+      return { latitude: finalLat, longitude: finalLng };
+    });
+
+    // ALWAYS send raw GPS coordinates to backend database (100% backend accuracy)
     try {
       await DriverService.updateLocation(finalLat, finalLng);
     } catch (e) {
       console.warn('Failed to sync location to backend database:', e);
     }
-  };
+  }, [MOHALI_COORDS.latitude, MOHALI_COORDS.longitude]);
 
-  const centerMapOnDriver = () => {
+  const centerMapOnDriver = useCallback(() => {
     let targetLat = location?.latitude || (driver?.latitude ? Number(driver.latitude) : MOHALI_COORDS.latitude);
     let targetLng = location?.longitude || (driver?.longitude ? Number(driver.longitude) : MOHALI_COORDS.longitude);
 
@@ -341,82 +334,68 @@ export const HomeScreen = () => {
         longitudeDelta: 0.009,
       }, 1000);
     }
-  };
+  }, [driver?.latitude, driver?.longitude, location?.latitude, location?.longitude, MOHALI_COORDS.latitude, MOHALI_COORDS.longitude]);
 
   useEffect(() => {
     let watchId: number;
     let pollIntervalId: any;
 
     const startTracking = async () => {
-      const hasPermission = await requestLocationPermission();
-      const isLinked = !!Geolocation && typeof Geolocation.getCurrentPosition === 'function';
+      try {
+        const hasPermission = await LocationService.requestLocationPermission();
+        const isLinked = !!Geolocation && typeof Geolocation.getCurrentPosition === 'function';
 
-      if (hasPermission && isLinked) {
-        // Immediate GPS acquisition (forces fresh physical device GPS lock)
-        Geolocation.getCurrentPosition(
-          (position: any) => {
-            if (position?.coords) {
-              const { latitude, longitude } = position.coords;
-              if (latitude && longitude) {
-                syncDriverLocation(latitude, longitude);
-              }
+        if (hasPermission && isLinked) {
+          // 1. Initial Position Acquisition (attempts GPS high accuracy first, then Network Provider fallback)
+          try {
+            const coords = await LocationService.getCurrentPosition({ timeout: 10000, maximumAge: 5000 });
+            if (coords?.latitude && coords?.longitude) {
+              syncDriverLocation(coords.latitude, coords.longitude);
             }
-          },
-          (error: any) => {
-            console.warn('Geolocation initial lock waiting for device GPS fix:', error);
-            if (error?.code === 2 || error?.message?.includes('disabled')) {
+          } catch (initialErr: any) {
+            console.warn('Geolocation initial lock waiting for device location fix:', initialErr);
+            if (initialErr?.code === 2 || initialErr?.message?.includes('disabled')) {
               promptEnableLocationServices();
             }
-          },
-          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        );
+          }
 
-        // Continuous high-accuracy GPS watch stream for smooth real-time tracking
-        try {
-          watchId = Geolocation.watchPosition(
-            (position: any) => {
-              if (position?.coords) {
-                const { latitude, longitude } = position.coords;
-                if (latitude && longitude) {
-                  syncDriverLocation(latitude, longitude);
-                }
-              }
-            },
-            (error: any) => {
-              console.log('Location watch error:', error);
-              if (error?.code === 2 || error?.message?.includes('disabled')) {
-                promptEnableLocationServices();
-              }
-            },
-            {
-              enableHighAccuracy: true,
-              distanceFilter: 3, // Real-time smooth updates on 3 meters movement
-              interval: 3000,
-              fastestInterval: 1500
-            }
-          );
-        } catch (err) {
-          console.warn('watchPosition failed:', err);
-        }
-
-        // Active background sync while online (polls every 5s if stationary)
-        if (isOnline) {
-          pollIntervalId = setInterval(() => {
-            Geolocation.getCurrentPosition(
-              (pos: any) => {
-                if (pos?.coords) {
-                  syncDriverLocation(pos.coords.latitude, pos.coords.longitude);
+          // 2. Continuous high-accuracy GPS watch stream for smooth real-time tracking
+          try {
+            watchId = LocationService.watchPosition(
+              (coords) => {
+                if (coords?.latitude && coords?.longitude) {
+                  syncDriverLocation(coords.latitude, coords.longitude);
                 }
               },
-              (err: any) => {
+              (error: any) => {
+                console.log('Location watch error:', error);
+                if (error?.code === 2 || error?.message?.includes('disabled')) {
+                  promptEnableLocationServices();
+                }
+              }
+            ) ?? (undefined as any);
+          } catch (err) {
+            console.warn('watchPosition failed:', err);
+          }
+
+          // 3. Active background sync while online (polls every 5s if stationary)
+          if (isOnline) {
+            pollIntervalId = setInterval(async () => {
+              try {
+                const pos = await LocationService.getCurrentPosition({ timeout: 8000, maximumAge: 5000 });
+                if (pos?.latitude && pos?.longitude) {
+                  syncDriverLocation(pos.latitude, pos.longitude);
+                }
+              } catch (err: any) {
                 if (err?.code === 2 || err?.message?.includes('disabled')) {
                   promptEnableLocationServices();
                 }
-              },
-              { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-            );
-          }, 5000);
+              }
+            }, 5000);
+          }
         }
+      } catch (err) {
+        console.error('Error starting location tracking:', err);
       }
     };
 
@@ -788,7 +767,29 @@ export const HomeScreen = () => {
     };
   }, [driver?.id]);
 
-  // Handle map region change and enforce camera boundaries & zoom restrictions
+  const lastActiveClampTimeRef = useRef<number>(0);
+
+  // Active continuous region change handler (clamps camera immediately during drag gestures)
+  const handleActiveRegionChange = (newRegion: Region) => {
+    if (!serviceArea || !serviceArea.boundary) return;
+
+    const { targetRegion, isClamped } = clampRegionToBounds(newRegion, serviceArea.boundary);
+
+    if (isClamped && mapRef.current) {
+      const now = Date.now();
+      if (now - lastActiveClampTimeRef.current > 40) {
+        lastActiveClampTimeRef.current = now;
+        mapRef.current.setCamera({
+          center: {
+            latitude: targetRegion.latitude,
+            longitude: targetRegion.longitude,
+          },
+        });
+      }
+    }
+  };
+
+  // Handle map region change and enforce camera boundaries & zoom restrictions when gesture ends
   const handleRegionChangeComplete = (newRegion: Region) => {
     if (isClampingRef.current) return;
     if (!serviceArea || !serviceArea.boundary) return;
@@ -1033,6 +1034,7 @@ export const HomeScreen = () => {
                   },
                 } as any)
               : {})}
+            onRegionChange={handleActiveRegionChange}
             onRegionChangeComplete={handleRegionChangeComplete}
           >
 

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
 // --- PHYSICAL PHONE / CLOUDFLARE TUNNEL URL (Active for Physical Phone & Remote Testing) ---
-// export const API_BASE_URL = 'https://bar-liable-buyer-into.trycloudflare.com';
+export const API_BASE_URL = 'https://incurred-rice-barriers-shaw.trycloudflare.com';
 // --- LOCAL ANDROID EMULATOR DEVELOPMENT URL (Uncomment for local emulator only) ---
-export const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+// export const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
