@@ -119,7 +119,11 @@ export const RegisterScreen = () => {
       );
       navigation.navigate(ROUTES.OTP_VERIFICATION);
     } catch (err: any) {
-      setError(err.message || err || 'Registration failed. Please check details.');
+      if (err?.message === 'VERIFY_OTP_REQUIRED') {
+        navigation.navigate(ROUTES.OTP_VERIFICATION);
+      } else {
+        setError(err.message || err || 'Registration failed. Please check details.');
+      }
     } finally {
       setLoading(false);
     }

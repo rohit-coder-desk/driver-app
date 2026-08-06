@@ -900,10 +900,18 @@ export const HomeScreen = () => {
         const canGoOnline = updatedProfile?.canGoOnline ?? expiryInfo?.canGoOnline ?? (updatedProfile?.authorizationStatus === 'approved');
 
         if (!canGoOnline) {
-          const blockMessage = updatedProfile?.onlineBlockReason || expiryInfo?.onlineBlockReason || 'Your documents must be approved and not expired before you can go online.';
+          const isMissing = isProfileIncomplete || (expiryInfo?.missingDocuments && expiryInfo.missingDocuments.length > 0);
+          const modalTitle = expiryInfo?.hasExpiredDocs
+            ? 'Account Restriction'
+            : isMissing
+              ? 'Complete Your Profile'
+              : 'Verification Under Review';
+
+          const blockMessage = updatedProfile?.onlineBlockReason || expiryInfo?.onlineBlockReason || 'Please upload required documents for admin review before going online.';
+
           showDriverModal(
             'warning',
-            'Account Restriction',
+            modalTitle,
             blockMessage,
             'Upload Document',
             () => navigation.navigate(ROUTES.DOCUMENTS),
@@ -1246,23 +1254,21 @@ export const HomeScreen = () => {
           onCompleteDelivery={handleOpenPaymentModal}
           loading={actionLoading}
         />
-      ) : (driver?.docExpiryInfo?.hasExpiredDocs || (driver?.docExpiryInfo && !driver.docExpiryInfo.canGoOnline)) ? (
+      ) : driver?.docExpiryInfo?.hasExpiredDocs ? (
         <TouchableOpacity
           style={styles.rejectedCard}
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
-          <Text style={styles.rejectedTitle}>
-            {driver?.docExpiryInfo?.hasExpiredDocs ? '❌ Document Expired' : '⚠️ Verification Required'}
-          </Text>
+          <Text style={styles.rejectedTitle}>❌ Document Expired</Text>
           <Text style={styles.rejectedSubtitle}>
-            {driver?.onlineBlockReason || driver?.docExpiryInfo?.onlineBlockReason || 'Your account is restricted. Please upload a valid document.'}
+            {driver?.onlineBlockReason || driver?.docExpiryInfo?.onlineBlockReason || 'Your document has expired. Please upload a valid updated document.'}
           </Text>
         </TouchableOpacity>
       ) : isProfileIncomplete ? (
         <TouchableOpacity
           style={styles.completeProfileCard}
-          onPress={() => navigation.navigate(ROUTES.PROFILE)}
+          onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
           <Text style={styles.completeProfileTitle}>⚠️ Complete Your Profile</Text>

@@ -150,18 +150,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     vehicleTypeId?: number,
     username?: string
   ) => {
-    const response = await AuthService.register({
-      name,
-      phone,
-      email,
-      password,
-      vehicleTypeId,
-      username: username || phone,
-    });
+    try {
+      const response = await AuthService.register({
+        name,
+        phone,
+        email,
+        password,
+        vehicleTypeId,
+        username: username || phone,
+      });
 
-    setUnverifiedPhone(phone);
-    if (response.otp) {
-      setOtpCodeForTesting(response.otp);
+      setUnverifiedPhone(phone);
+      if (response.otp) {
+        setOtpCodeForTesting(response.otp);
+      }
+    } catch (error: any) {
+      if (error?.isRegistrationVerified === false || error?.message?.includes('verify') || error?.message?.includes('OTP')) {
+        setUnverifiedPhone(phone);
+        try {
+          const res = await AuthService.sendOtp(phone);
+          if (res.otp) {
+            setOtpCodeForTesting(res.otp);
+          }
+        } catch (err) {
+          console.warn('Resend OTP on register catch failed:', err);
+        }
+        throw new Error('VERIFY_OTP_REQUIRED');
+      }
+      throw error;
     }
   }, []);
 

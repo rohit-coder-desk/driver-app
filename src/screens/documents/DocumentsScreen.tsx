@@ -237,6 +237,16 @@ export const DocumentsScreen = () => {
   const authStatus = driver?.authorizationStatus; // 'approved' | 'pending' | 'rejected'
   const rejectionReason = driver?.authorizationDescription;
 
+  const hasUploadedDocs = useMemo(() => {
+    return !!(
+      driver?.avatarPhoto ||
+      driver?.drivingLicencePhoto ||
+      driver?.rcPhoto ||
+      driver?.insurancePhoto ||
+      driver?.identityCardPhoto
+    );
+  }, [driver]);
+
   const rejectedDocNames = useMemo(() => {
     const docStatuses = driver?.documentStatuses as Record<string, any> | undefined;
     const list: string[] = [];
@@ -383,12 +393,21 @@ export const DocumentsScreen = () => {
           </View>
         )}
         {authStatus === 'pending' && (
-          <View style={styles.pendingBanner}>
-            <Text style={styles.pendingBannerTitle}>⏳ Verification Under Review</Text>
-            <Text style={styles.pendingBannerText}>
-              Your documents have been submitted and are currently being reviewed by admin.
-            </Text>
-          </View>
+          hasUploadedDocs ? (
+            <View style={styles.pendingBanner}>
+              <Text style={styles.pendingBannerTitle}>⏳ Verification Under Review</Text>
+              <Text style={styles.pendingBannerText}>
+                Your documents have been submitted and are currently being reviewed by admin.
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.pendingBanner, { borderColor: '#F59E0B' }]}>
+              <Text style={[styles.pendingBannerTitle, { color: '#F59E0B' }]}>⚠️ Complete Profile Verification</Text>
+              <Text style={styles.pendingBannerText}>
+                Please upload all mandatory documents (Profile Photo, Aadhaar, Licence, RC, Insurance) below for admin review.
+              </Text>
+            </View>
+          )
         )}
         {authStatus === 'approved' && (
           <View style={styles.approvedBanner}>
