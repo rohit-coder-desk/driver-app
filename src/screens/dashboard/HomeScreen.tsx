@@ -19,10 +19,12 @@ import {
   AppStateStatus,
   Linking,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
+import { ServiceAreaConfig } from '../../types/serviceArea.types';
+import { DEFAULT_SERVICE_AREA, clampRegionToBounds, isRegionOutOfBounds } from '../../utils/mapBoundaryUtils';
 import { DriverService } from '../../services/DriverService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
 import { RouteService, LatLng } from '../../services/RouteService';
@@ -115,8 +117,10 @@ export const HomeScreen = () => {
     longitude: 76.7410,
   };
 
-  // Map Region and Marker Coordinates
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [serviceArea, setServiceArea] = useState<ServiceAreaConfig>(DEFAULT_SERVICE_AREA);
+  const isClampingRef = useRef<boolean>(false);
+
   const [region, setRegion] = useState({
     latitude: MOHALI_COORDS.latitude,
     longitude: MOHALI_COORDS.longitude,
@@ -762,6 +766,44 @@ export const HomeScreen = () => {
     showDriverModal('delivered', 'Delivery Completed! 🎉', 'You are back online and waiting for new offers.', 'Awesome');
   };
 
+  // Fetch Dynamic Service Area Boundary from Backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchServiceAreaConfig = async () => {
+      if (driver?.serviceArea) {
+        setServiceArea(driver.serviceArea);
+      }
+      try {
+        const areaConfig = await DriverService.getServiceArea();
+        if (isMounted && areaConfig && areaConfig.boundary) {
+          setServiceArea(areaConfig);
+        }
+      } catch (err) {
+        console.warn('Could not fetch dynamic service area boundary:', err);
+      }
+    };
+    fetchServiceAreaConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, [driver?.id]);
+
+  // Handle map region change and enforce camera boundaries & zoom restrictions
+  const handleRegionChangeComplete = (newRegion: Region) => {
+    if (isClampingRef.current) return;
+    if (!serviceArea || !serviceArea.boundary) return;
+
+    const { targetRegion, isClamped } = clampRegionToBounds(newRegion, serviceArea.boundary);
+
+    if (isClamped && mapRef.current) {
+      isClampingRef.current = true;
+      mapRef.current.animateToRegion(targetRegion, 300);
+      setTimeout(() => {
+        isClampingRef.current = false;
+      }, 350);
+    }
+  };
+
   // Sync profile details on mount & handle in-app expiry notifications
   useEffect(() => {
     const syncProfile = async () => {
@@ -956,7 +998,7 @@ export const HomeScreen = () => {
   };
 
   const navigationRef = useRef<any>(null);
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   navigationRef.current = navigation;
 
   // Render document upload missing notice if authorizationStatus is not approved
@@ -981,7 +1023,20 @@ export const HomeScreen = () => {
             style={StyleSheet.absoluteFill}
             initialRegion={region}
             showsMyLocationButton={false}
+            minZoomLevel={serviceArea.minZoomLevel || 11}
+            maxZoomLevel={serviceArea.maxZoomLevel || 20}
+            {...(serviceArea.boundary
+              ? ({
+                  cameraBoundary: {
+                    southWest: serviceArea.boundary.southWest,
+                    northEast: serviceArea.boundary.northEast,
+                  },
+                } as any)
+              : {})}
+            onRegionChangeComplete={handleRegionChangeComplete}
           >
+
+
             {location && (
               <Marker
                 coordinate={location}
@@ -1106,7 +1161,7 @@ export const HomeScreen = () => {
       <View style={styles.floatingHeaderCard}>
         {/* Hamburger Menu Trigger */}
         <TouchableOpacity
-          style={styles.hamburgerCircle}
+          style={styles.hamburgerBtn}
           onPress={openDrawer}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
@@ -1572,17 +1627,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 12,
     zIndex: 20,
     borderWidth: 1,
     borderColor: '#1E3A8A',
   },
-  hamburgerCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  hamburgerBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1592,40 +1644,43 @@ const styles = StyleSheet.create({
   },
   hamburgerIconText: {
     color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   headerInfoCol: {
     flex: 1,
     justifyContent: 'center',
   },
   greetingText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
     color: '#94A3B8',
   },
   driverNameTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
     marginVertical: 1,
   },
   driverIdSubtitle: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
     color: '#94A3B8',
   },
   headerRightControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   headerStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#1E3A8A',
@@ -1640,14 +1695,15 @@ const styles = StyleSheet.create({
     borderColor: '#1E3A8A',
   },
   headerStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
   headerStatusPillText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   statusDisplay: {
@@ -1670,18 +1726,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   onlineStatusTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#1e293b',
   },
   statusTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#1e293b',
   },
   statusTimer: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
     color: '#22c55e',
     marginTop: 1,
   },
@@ -1690,9 +1749,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   helloText: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#64748b',
-    fontWeight: '500',
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
   },
   offlineStatusRow: {
     flexDirection: 'row',
@@ -1700,24 +1760,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   redDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#ef4444',
-    marginRight: 4,
+    marginRight: 6,
   },
   offlineStatusTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#0f172a',
   },
   recenterButton: {
     position: 'absolute',
     right: 16,
     bottom: Platform.OS === 'ios' ? 100 : 84,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1731,7 +1792,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   gpsTargetIcon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   searchPill: {
     position: 'absolute',
@@ -1741,8 +1802,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1753,12 +1814,13 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   searchPillIcon: {
-    fontSize: 14,
+    fontSize: 16,
     marginRight: 8,
   },
   searchPillText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#0f172a',
   },
   completeProfileCard: {
@@ -1768,7 +1830,7 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     borderWidth: 1.5,
     borderColor: '#f59e0b',
     shadowColor: '#000000',
@@ -1780,14 +1842,16 @@ const styles = StyleSheet.create({
   },
   completeProfileTitle: {
     color: '#d97706',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   completeProfileSubtitle: {
     color: '#475569',
-    fontSize: 11,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
     marginTop: 4,
-    lineHeight: 15,
+    lineHeight: 20,
   },
   submittedCard: {
     position: 'absolute',
@@ -1796,7 +1860,7 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
     shadowColor: '#000000',
@@ -1809,13 +1873,15 @@ const styles = StyleSheet.create({
   },
   submittedTitle: {
     color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   submittedSubtitle: {
     color: '#64748b',
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    marginTop: 4,
   },
   rejectedCard: {
     position: 'absolute',
@@ -1824,7 +1890,7 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     borderWidth: 1.5,
     borderColor: COLORS.error,
     shadowColor: '#000000',
@@ -1836,12 +1902,14 @@ const styles = StyleSheet.create({
   },
   rejectedTitle: {
     color: COLORS.error,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   rejectedSubtitle: {
     color: '#475569',
-    fontSize: 11,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
     marginTop: 4,
   },
   backdrop: {
@@ -1850,7 +1918,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     zIndex: 99,
   },
   drawer: {
@@ -1876,15 +1944,15 @@ const styles = StyleSheet.create({
   drawerHeader: {
     backgroundColor: '#08162E',
     paddingTop: Platform.OS === 'ios' ? 56 : Math.max(StatusBar.currentHeight || 0, 24) + 16,
-    paddingBottom: 20,
+    paddingBottom: 24,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarBorder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 2,
     borderColor: '#0066FF',
     backgroundColor: '#0D2040',
@@ -1898,12 +1966,13 @@ const styles = StyleSheet.create({
   },
   avatarInitialsText: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   drawerHeaderDetails: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 16,
   },
   drawerNameRow: {
     flexDirection: 'row',
@@ -1912,65 +1981,68 @@ const styles = StyleSheet.create({
   },
   drawerNameText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: -0.2,
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   verifiedBadge: {
     color: '#0066FF',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     backgroundColor: '#0D2040',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   drawerPhoneText: {
     color: '#94A3B8',
-    fontSize: 12.5,
-    fontWeight: '500',
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
+    marginTop: 4,
   },
   drawerStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0D2040',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 12,
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: '#16325B',
   },
   drawerStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 6,
   },
   drawerStatusText: {
     color: '#FFFFFF',
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   drawerMenu: {
     flex: 1,
   },
   drawerMenuContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 6,
   },
   drawerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 14,
+    minHeight: 54,
     backgroundColor: 'transparent',
   },
   activeDrawerItem: {
@@ -1978,9 +2050,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   drawerItemIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#0F2447',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1992,58 +2064,59 @@ const styles = StyleSheet.create({
     borderColor: '#0066FF',
   },
   drawerItemEmoji: {
-    fontSize: 18,
+    fontSize: 22,
   },
   drawerItemText: {
     flex: 1,
-    fontSize: 14.5,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
     color: '#94A3B8',
-    marginLeft: 4,
+    marginLeft: 8,
   },
   activeDrawerItemText: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   drawerItemChevron: {
-    fontSize: 18,
-    fontWeight: '400',
+    fontSize: 20,
     color: '#64748B',
   },
   drawerSectionDivider: {
     height: 1,
     backgroundColor: '#16325B',
-    marginVertical: 8,
+    marginVertical: 10,
     marginHorizontal: 8,
   },
   drawerFooter: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
     borderTopWidth: 1,
     borderTopColor: '#16325B',
     backgroundColor: '#08162E',
   },
   logoutBtn: {
     backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    height: 48,
+    height: 54,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    gap: 10,
+    paddingHorizontal: 20,
+    gap: 12,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   logoutBtnEmoji: {
-    fontSize: 18,
+    fontSize: 22,
   },
   logoutBtnText: {
     color: '#EF4444',
-    fontSize: 14.5,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   driverMarkerContainer: {
     alignItems: 'center',
@@ -2117,9 +2190,9 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     backgroundColor: 'rgba(15, 23, 42, 0.92)',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.5)',
     zIndex: 9999,
@@ -2131,16 +2204,16 @@ const styles = StyleSheet.create({
   },
   debugBannerTitle: {
     color: '#60a5fa',
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 4,
-    letterSpacing: 0.5,
   },
   debugBannerText: {
     color: '#f8fafc',
-    fontSize: 12,
-    fontWeight: '600',
-    marginVertical: 1,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    marginVertical: 2,
   },
   unverifiedMapPlaceholder: {
     position: 'absolute',
@@ -2157,15 +2230,15 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   unverifiedGlowCircle: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: 'rgba(15, 34, 70, 0.9)',
     borderWidth: 1.5,
     borderColor: 'rgba(96, 165, 250, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -2173,21 +2246,23 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   unverifiedShieldIcon: {
-    fontSize: 42,
+    fontSize: 48,
   },
   unverifiedTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
     marginBottom: 8,
     textAlign: 'center',
   },
   unverifiedSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 300,
+    lineHeight: 24,
+    maxWidth: 320,
   },
   offlineMapPlaceholder: {
     position: 'absolute',
@@ -2204,15 +2279,15 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   offlineGlowCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: '#F1F5F9',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 24,
     shadowColor: '#64748B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -2220,20 +2295,21 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   offlineTitle: {
-    fontSize: 21,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#0F172A',
-    marginBottom: 6,
+    marginBottom: 8,
     textAlign: 'center',
-    letterSpacing: -0.3,
   },
   offlineSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
     color: '#64748B',
     textAlign: 'center',
-    lineHeight: 21,
-    maxWidth: 280,
+    lineHeight: 24,
+    maxWidth: 300,
   },
   warningBannerContainer: {
     position: 'absolute',
@@ -2246,7 +2322,7 @@ const styles = StyleSheet.create({
     borderColor: '#F59E0B',
     borderRadius: 14,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -2258,19 +2334,20 @@ const styles = StyleSheet.create({
   },
   warningBannerText: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#92400E',
-    marginRight: 8,
+    marginRight: 10,
   },
   warningBannerBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#B45309',
     backgroundColor: '#FDE68A',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: 8,
   },
 });
+
 export default HomeScreen;

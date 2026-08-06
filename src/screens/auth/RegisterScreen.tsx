@@ -11,6 +11,8 @@ import {
   ScrollView,
   Modal,
   Image,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -68,8 +70,6 @@ export const RegisterScreen = () => {
     }
 
     const trimemail = email.trim()
-
-
 
     // 3. Mobile Number Validation
     let rawPhone = phone.trim().replace(/\s+/g, '');
@@ -134,25 +134,32 @@ export const RegisterScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        <Loader visible={loading} message="Registering Driver..." />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#061A3A" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoiding}
+      >
+        <ScrollView
+          scrollEnabled={false}
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Loader visible={loading} message="Registering Driver..." />
 
-        {/* Screen Title */}
-        <View style={styles.header}>
-          <View style={styles.logoBadge}>
-            <Image
-              source={require('../../assets/images/logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+          {/* Screen Title */}
+          <View style={styles.header}>
+            <View style={styles.logoBadge}>
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.title}>Register Driver</Text>
+            <Text style={styles.subtitle}>Join CDX Last Mile Fleet</Text>
           </View>
-          <Text style={styles.title}>Register Driver</Text>
-          <Text style={styles.subtitle}>Join CDX Last Mile Fleet</Text>
-        </View>
 
         {/* Form Card */}
         <View style={styles.card}>
@@ -167,7 +174,7 @@ export const RegisterScreen = () => {
             <Text style={styles.label}>First Name *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter full name"
+              placeholder="Enter first name"
               placeholderTextColor="#94a3b8"
               value={name}
               onChangeText={setName}
@@ -180,7 +187,7 @@ export const RegisterScreen = () => {
             <Text style={styles.label}>Last Name *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter username"
+              placeholder="Enter last name"
               placeholderTextColor="#94a3b8"
               value={username}
               onChangeText={setUsername}
@@ -311,6 +318,7 @@ export const RegisterScreen = () => {
         </TouchableOpacity>
       </Modal>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -318,50 +326,61 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#061A3A',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 0,
+  },
+  keyboardAvoiding: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    padding: 24,
-    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+    justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
+    marginTop: 4,
   },
   logoBadge: {
-    width: 84,
-    height: 84,
-    borderRadius: 22,
+    width: 70,
+    height: 70,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
     shadowColor: '#0066FF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
     elevation: 8,
   },
   logoImage: {
-    width: 58,
-    height: 58,
+    width: 46,
+    height: 46,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    marginBottom: 6,
-    letterSpacing: -0.3,
+    marginBottom: 4,
+    lineHeight: 30,
   },
   subtitle: {
     fontSize: 14,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     textAlign: 'center',
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#0B2246',
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: 18,
+    padding: 18,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -375,21 +394,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EF4444',
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
+    padding: 10,
+    marginBottom: 14,
   },
   errorText: {
     color: '#FCA5A5',
     fontSize: 13,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
     color: '#94A3B8',
     marginBottom: 6,
   },
@@ -397,12 +418,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 14,
-    height: 52,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 14,
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
   },
   phoneInputRow: {
     flexDirection: 'row',
@@ -415,18 +437,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 14,
-    height: 52,
+    borderRadius: 12,
+    height: 48,
     paddingHorizontal: 12,
+    minWidth: 48,
   },
   flagText: {
     fontSize: 18,
-    marginRight: 4,
+    marginRight: 6,
   },
   countryCodeText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     marginRight: 4,
   },
   dropdownArrow: {
@@ -438,12 +462,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 14,
-    height: 52,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 14,
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -451,22 +476,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2A54',
     borderWidth: 1,
     borderColor: '#1E3A8A',
-    borderRadius: 14,
-    height: 52,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 14,
   },
   passwordInput: {
     flex: 1,
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
     height: '100%',
     padding: 0,
   },
   eyeButton: {
-    padding: 8,
+    padding: 6,
     justifyContent: 'center',
     alignItems: 'center',
+    minWidth: 44,
+    minHeight: 44,
   },
   eyeIconContainer: {
     width: 24,
@@ -500,7 +528,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#0066FF',
     borderRadius: 14,
-    height: 52,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
@@ -513,21 +541,23 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
     letterSpacing: 0.3,
   },
   footer: {
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 8,
   },
   footerLink: {
     color: '#94A3B8',
-    fontSize: 13.5,
+    fontSize: 14,
   },
   footerLinkHighlight: {
     color: '#0066FF',
-    fontWeight: '700',
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   modalOverlay: {
     flex: 1,

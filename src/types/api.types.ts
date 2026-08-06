@@ -23,8 +23,12 @@ export interface VerifyOtpPayload {
   otp: string;
 }
 
+import { ServiceAreaConfig } from './serviceArea.types';
+
 export interface Driver {
   id: number;
+  serviceArea?: ServiceAreaConfig | null;
+
   name: string;
   phone: string;
   email: string | null;

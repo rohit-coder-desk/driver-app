@@ -64,10 +64,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconContainer: {
-    width: 76,
-    height: 76,
+    width: 80,
+    height: 80,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 24,
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -82,12 +82,13 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   textContainer: {
-    marginLeft: 18,
+    marginLeft: 20,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
+    fontSize: 32,
+    fontWeight: '700',
+    fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
     letterSpacing: -0.5,
   },
@@ -95,12 +96,13 @@ const styles = StyleSheet.create({
     color: '#0066FF',
   },
   subtitle: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
     color: '#0066FF',
-    letterSpacing: 2.2,
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    marginTop: 3,
+    marginTop: 4,
   },
   footerBox: {
     position: 'absolute',
@@ -112,8 +114,9 @@ const styles = StyleSheet.create({
   },
   footerVersion: {
     color: '#64748B',
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
   },
 });
 

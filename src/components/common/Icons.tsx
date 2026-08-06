@@ -6,28 +6,28 @@ interface IconProps {
   size?: number;
 }
 
-export const HomeIcon: React.FC<IconProps> = ({ color = '#2563eb', size = 20 }) => (
+export const HomeIcon: React.FC<IconProps> = ({ color = '#2563eb', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size }]}>
     <View style={[styles.roofTriangle, { borderBottomColor: color, borderBottomWidth: size * 0.45, borderLeftWidth: size * 0.45, borderRightWidth: size * 0.45 }]} />
     <View style={[styles.houseBase, { backgroundColor: color, width: size * 0.65, height: size * 0.45, marginTop: -size * 0.05 }]} />
   </View>
 );
 
-export const ProfileIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+export const ProfileIcon: React.FC<IconProps> = ({ color = '#64748b', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size }]}>
     <View style={[styles.headCircle, { backgroundColor: color, width: size * 0.42, height: size * 0.42, borderRadius: size * 0.21 }]} />
     <View style={[styles.bodyArc, { backgroundColor: color, width: size * 0.75, height: size * 0.38, borderRadius: size * 0.38, marginTop: size * 0.08 }]} />
   </View>
 );
 
-export const EditIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+export const EditIcon: React.FC<IconProps> = ({ color = '#64748b', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size }]}>
     <View style={[styles.pencilBody, { backgroundColor: color, width: size * 0.3, height: size * 0.65, borderRadius: size * 0.08, transform: [{ rotate: '-45deg' }] }]} />
     <View style={[styles.pencilBaseLine, { backgroundColor: color, width: size * 0.7, height: 2, marginTop: size * 0.15 }]} />
   </View>
 );
 
-export const OrdersIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+export const OrdersIcon: React.FC<IconProps> = ({ color = '#64748b', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}> 
     <View style={{ width: size * 0.8, height: size * 0.16, backgroundColor: color, borderRadius: 3, marginBottom: size * 0.12 }} />
     <View style={{ width: size * 0.6, height: size * 0.16, backgroundColor: color, borderRadius: 3, marginBottom: size * 0.12 }} />
@@ -35,7 +35,7 @@ export const OrdersIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }
   </View>
 );
 
-export const DocumentsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+export const DocumentsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}> 
     <View style={{ width: size * 0.7, height: size * 0.85, borderWidth: 2, borderColor: color, borderRadius: 4, padding: 2 }}>
       <View style={{ width: size * 0.45, height: size * 0.14, backgroundColor: color, borderRadius: 2, marginBottom: 4 }} />
@@ -45,7 +45,7 @@ export const DocumentsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 2
   </View>
 );
 
-export const SupportIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+export const SupportIcon: React.FC<IconProps> = ({ color = '#64748b', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}> 
     <View style={{ width: size * 0.7, height: size * 0.55, borderRadius: size * 0.15, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }}>
       <View style={{ width: size * 0.45, height: size * 0.14, backgroundColor: color, borderRadius: 2 }} />
@@ -54,13 +54,13 @@ export const SupportIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 
   </View>
 );
 
-export const EarningsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 20 }) => (
+export const EarningsIcon: React.FC<IconProps> = ({ color = '#64748b', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, justifyContent: 'center', alignItems: 'center' }]}> 
     <Text style={{ color, fontSize: size * 0.55, fontWeight: '900', marginTop: -1 }}>₹</Text>
   </View>
 );
 
-export const LogoutIcon: React.FC<IconProps> = ({ color = '#ef4444', size = 20 }) => (
+export const LogoutIcon: React.FC<IconProps> = ({ color = '#ef4444', size = 24 }) => (
   <View style={[styles.iconBase, { width: size, height: size, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}> 
     <View style={{ width: size * 0.55, height: size * 0.7, borderRadius: 3, borderWidth: 2, borderColor: color, borderRightWidth: 0 }} />
     <View style={{ width: size * 0.35, height: 2, backgroundColor: color, marginLeft: -size * 0.15 }} />

@@ -28,4 +28,8 @@ export const driverApi = {
   getWorkingTypeConfig: () => {
     return apiClient.get('/api/drivers/me/working-type-config');
   },
+  getServiceArea: () => {
+    return apiClient.get('/api/drivers/me/service-area');
+  },
 };
+

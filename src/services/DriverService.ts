@@ -63,4 +63,14 @@ export const DriverService = {
       return null;
     }
   },
+  getServiceArea: async () => {
+    try {
+      const response = await driverApi.getServiceArea();
+      return response.data?.serviceArea || null;
+    } catch (error: any) {
+      console.warn('Failed to fetch service area configuration:', error);
+      return null;
+    }
+  },
 };
+

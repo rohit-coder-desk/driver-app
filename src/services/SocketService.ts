@@ -54,8 +54,7 @@ class SocketService {
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         autoConnect: true,
-        jsonp: false,
-      });
+      } as any);
 
       this.setupSocketListeners(this.socket);
     } else {

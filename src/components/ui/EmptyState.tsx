@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { COLORS } from '../../constants/colors';
+import { SHADOWS } from '../../theme/components';
 import { Button } from './Button';
 
 export interface EmptyStateProps {
@@ -42,36 +43,43 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: THEME.spacing.xxl,
+    padding: 32,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: THEME.colors.primaryLight,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: COLORS.surfaceSoft,
     borderWidth: 1.5,
-    borderColor: THEME.colors.primaryBorder,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: THEME.spacing.lg,
-    ...THEME.shadows.sm,
+    marginBottom: 20,
+    ...SHADOWS.sm,
   },
   emojiText: {
-    fontSize: 36,
+    fontSize: 40,
   },
   title: {
-    ...THEME.typography.h3,
-    color: THEME.colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: THEME.spacing.xs,
+    marginBottom: 8,
+    lineHeight: 28,
   },
   description: {
-    ...THEME.typography.bodyMedium,
-    color: THEME.colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
   },
   actionRow: {
-    marginTop: THEME.spacing.xl,
+    marginTop: 24,
+    width: '100%',
+    alignItems: 'center',
   },
 });
