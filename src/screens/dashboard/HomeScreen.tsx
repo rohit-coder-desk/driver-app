@@ -18,6 +18,8 @@ import {
   AppState,
   AppStateStatus,
   Linking,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -30,6 +32,7 @@ import { LocationService } from '../../services/LocationService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
 import { RouteService, LatLng } from '../../services/RouteService';
 import { OrderRequestModal } from '../../components/orders/OrderRequestModal';
+import { OrderOfferCard } from '../../components/orders/OrderOfferCard';
 import { PaymentConfirmationModal } from '../../components/orders/PaymentConfirmationModal';
 import { CustomerReviewModal } from '../../components/orders/CustomerReviewModal';
 import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
@@ -45,8 +48,17 @@ const DRAWER_WIDTH = width * 0.75;
 
 const GLOBAL_ROUTE_CACHE: Record<string, LatLng[]> = {};
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export const HomeScreen = () => {
   const { driver, logout, refreshProfile } = useAuth();
+  const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
+  const navigationRef = useRef<any>(navigation);
+  navigationRef.current = navigation;
+
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -54,6 +66,7 @@ export const HomeScreen = () => {
 
   // Order & Offer state
   const [activeOrder, setActiveOrder] = useState<OrderData | null>(null);
+  const [incomingOffers, setIncomingOffers] = useState<OrderOfferData[]>([]);
   const [incomingOffer, setIncomingOffer] = useState<OrderOfferData | null>(null);
   const [offerModalVisible, setOfferModalVisible] = useState<boolean>(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState<boolean>(false);
@@ -175,35 +188,7 @@ export const HomeScreen = () => {
 
   const isTogglingOfflineRef = useRef(false);
 
-  // Automatically update driver status to Offline when app moves to background/inactive (unless handling an active delivery)
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (
-        (nextAppState === 'background' || nextAppState === 'inactive') &&
-        isOnlineRef.current &&
-        !activeOrderRef.current &&
-        !isTogglingOfflineRef.current
-      ) {
-        isTogglingOfflineRef.current = true;
-        try {
-          // Immediately update local state to stop location watching & order polling
-          setIsOnline(false);
-          await DriverService.updateStatus('offline');
-          await refreshProfile().catch(() => { });
-        } catch (error) {
-          console.warn('Auto offline on app background failed:', error);
-        } finally {
-          isTogglingOfflineRef.current = false;
-        }
-      }
-    };
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
 
   const hasPromptedLocationSettingsRef = useRef(false);
 
@@ -289,12 +274,12 @@ export const HomeScreen = () => {
       console.log(`[LOCATION-DEBUG] [GPS-SYNC-SUCCESS] Device Lat: ${finalLat}, Lng: ${finalLng}`);
     }
 
-    // Only update local React UI state if location moved >= 3 meters (~0.00003 deg) to prevent micro-jitter UI re-renders
+    // Only update local React UI state if location moved >= 8-10 meters (~0.00008 deg) to prevent micro-jitter UI re-renders
     setLocation((prevLoc) => {
       if (
         prevLoc &&
-        Math.abs(prevLoc.latitude - finalLat) < 0.00003 &&
-        Math.abs(prevLoc.longitude - finalLng) < 0.00003
+        Math.abs(prevLoc.latitude - finalLat) < 0.00008 &&
+        Math.abs(prevLoc.longitude - finalLng) < 0.00008
       ) {
         return prevLoc;
       }
@@ -446,8 +431,6 @@ export const HomeScreen = () => {
     }
   }, [driver]);
 
-  const isFocused = useIsFocused();
-
   // Re-check active order status when HomeScreen comes back into focus
   useEffect(() => {
     if (isFocused && driver) {
@@ -583,14 +566,55 @@ export const HomeScreen = () => {
   useEffect(() => {
     let offerInterval: any;
 
-    if (isOnline && !activeOrder && !incomingOffer) {
+    if (isOnline) {
       const fetchOffers = async () => {
+        // If driver has an active delivery, suppress incoming offers
+        if (activeOrderRef.current || activeOrder) {
+          setIncomingOffers([]);
+          setIncomingOffer(null);
+          setOfferModalVisible(false);
+          return;
+        }
+
         try {
           const offers = await OrderService.getDriverOffers();
-          if (offers && offers.length > 0) {
-            const latestOffer = offers[0];
-            setIncomingOffer(latestOffer);
-            setOfferModalVisible(true);
+          if (offers && Array.isArray(offers)) {
+            setIncomingOffers((prev) => {
+              const offerMap = new Map<number, OrderOfferData>();
+
+              // Preserve existing valid pending offers
+              prev.forEach((o) => {
+                if (o && o.id) {
+                  offerMap.set(o.id, o);
+                }
+              });
+
+              // Merge incoming offers from API
+              offers.forEach((o) => {
+                if (o && o.id && o.status === 'pending') {
+                  offerMap.set(o.id, o);
+                }
+              });
+
+              // Sort by offer timestamp (newest -> oldest), falling back to offer.id (Constraint 10)
+              const getOfferTime = (item: OrderOfferData): number => {
+                const raw = (item as any).offeredAt || (item as any).createdAt || item.order?.createdAt;
+                if (raw) {
+                  const t = new Date(raw).getTime();
+                  if (!isNaN(t)) return t;
+                }
+                return item.id || 0;
+              };
+
+              const nextOffers = Array.from(offerMap.values()).sort(
+                (a, b) => getOfferTime(b) - getOfferTime(a)
+              );
+
+              if (nextOffers.length !== prev.length) {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              }
+              return nextOffers;
+            });
           }
         } catch (err) {
           console.warn('Error fetching driver offers:', err);
@@ -599,12 +623,16 @@ export const HomeScreen = () => {
 
       fetchOffers();
       offerInterval = setInterval(fetchOffers, 4000);
+    } else {
+      setIncomingOffers([]);
+      setIncomingOffer(null);
+      setOfferModalVisible(false);
     }
 
     return () => {
       if (offerInterval) clearInterval(offerInterval);
     };
-  }, [isOnline, activeOrder, incomingOffer]);
+  }, [isOnline, activeOrder]);
 
   const handleAcceptOffer = async (offer: OrderOfferData) => {
     setActionLoading(true);
@@ -614,6 +642,10 @@ export const HomeScreen = () => {
       setOfferModalVisible(false);
       setIncomingOffer(null);
 
+      // Remove accepted offer from pending stack (Constraint 5)
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIncomingOffers((prev) => prev.filter((o) => o.id !== offer.id));
+
       const orderData = offer.order;
       console.log('[DEBUG-NAV] Accept offer raw orderData:', {
         id: orderData?.id,
@@ -621,6 +653,7 @@ export const HomeScreen = () => {
         dropoff: orderData?.dropoff,
       });
 
+      // Existing activeOrder flow handles accepted order exactly as before
       setActiveOrder({ ...orderData, status: 'assigned' });
 
       showDriverModal('order_accepted', 'Order Accepted!', 'Proceeding to pickup location.', "Let's Go");
@@ -628,6 +661,7 @@ export const HomeScreen = () => {
       showDriverModal('error', 'Accept Failed', err.toString() || 'Offer is no longer available.');
       setOfferModalVisible(false);
       setIncomingOffer(null);
+      setIncomingOffers((prev) => prev.filter((o) => o.id !== offer.id));
     } finally {
       setActionLoading(false);
     }
@@ -642,13 +676,34 @@ export const HomeScreen = () => {
     } finally {
       setOfferModalVisible(false);
       setIncomingOffer(null);
+      // Remove rejected offer from pending stack (Constraint 2)
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIncomingOffers((prev) => prev.filter((o) => o.id !== offer.id));
       setReviewModalVisible(false);
       setCompletedOrderForReview(null);
       setActionLoading(false);
     }
   };
 
+  const ensureOnlineForDeliveryAction = (): boolean => {
+    if (!isOnline) {
+      showDriverModal(
+        'warning',
+        'Please Go Online First',
+        'You are currently offline. Please go online to continue your delivery.',
+        'Go Online',
+        () => {
+          handleToggleOnline(true);
+        },
+        'Cancel'
+      );
+      return false;
+    }
+    return true;
+  };
+
   const handleReachedPickup = async () => {
+    if (!ensureOnlineForDeliveryAction()) return;
     if (!activeOrder) return;
     setActionLoading(true);
     try {
@@ -663,6 +718,7 @@ export const HomeScreen = () => {
   };
 
   const handleConfirmPickup = async () => {
+    if (!ensureOnlineForDeliveryAction()) return;
     if (!activeOrder) return;
     setActionLoading(true);
     try {
@@ -687,6 +743,7 @@ export const HomeScreen = () => {
   };
 
   const handleReachedDestination = async () => {
+    if (!ensureOnlineForDeliveryAction()) return;
     if (!activeOrder) return;
     setActionLoading(true);
     try {
@@ -701,6 +758,7 @@ export const HomeScreen = () => {
   };
 
   const handleOpenPaymentModal = () => {
+    if (!ensureOnlineForDeliveryAction()) return;
     setPaymentModalVisible(true);
   };
 
@@ -839,7 +897,7 @@ export const HomeScreen = () => {
           'Close'
         );
       }
-    } 
+    }
     // 2. Warning condition: Display warning modal ONLY IF this stage has NOT been shown in current app session
     else if (expiryInfo?.warningBanner || driver.warningBanner) {
       const warningDoc = expiryInfo?.warningDocuments?.[0];
@@ -862,7 +920,7 @@ export const HomeScreen = () => {
           'Dismiss'
         );
       }
-    } 
+    }
     // 3. Document renewed or approved: Clear session warning state
     else {
       shownSessionWarningStagesRef.current.clear();
@@ -1006,9 +1064,7 @@ export const HomeScreen = () => {
     return `${API_BASE_URL}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   };
 
-  const navigationRef = useRef<any>(null);
-  const navigation = useNavigation<any>();
-  navigationRef.current = navigation;
+
 
   // Render document upload missing notice if authorizationStatus is not approved
   const isProfileIncomplete =
@@ -1036,11 +1092,11 @@ export const HomeScreen = () => {
             maxZoomLevel={serviceArea.maxZoomLevel || 20}
             {...(serviceArea.boundary
               ? ({
-                  cameraBoundary: {
-                    southWest: serviceArea.boundary.southWest,
-                    northEast: serviceArea.boundary.northEast,
-                  },
-                } as any)
+                cameraBoundary: {
+                  southWest: serviceArea.boundary.southWest,
+                  northEast: serviceArea.boundary.northEast,
+                },
+              } as any)
               : {})}
             onRegionChange={handleActiveRegionChange}
             onRegionChangeComplete={handleRegionChangeComplete}
@@ -1332,6 +1388,28 @@ export const HomeScreen = () => {
           <Text style={styles.bigGoOnlineText}>Go Online</Text>
         </TouchableOpacity>
       )}
+
+      {/* Floating Stacked Incoming Offers Container (Newest -> Oldest) */}
+      {isOnline && incomingOffers.length > 0 ? (
+        <View style={styles.stackedOffersContainer}>
+          <ScrollView
+            style={{ maxHeight: height * 0.45 }}
+            contentContainerStyle={{ paddingBottom: 4 }}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+          >
+            {incomingOffers.map((offer) => (
+              <OrderOfferCard
+                key={`offer-${offer.id}`}
+                offer={offer}
+                onAccept={handleAcceptOffer}
+                onReject={handleRejectOffer}
+                loading={actionLoading}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {/* Incoming Offer Request Modal */}
       <OrderRequestModal
@@ -1801,6 +1879,13 @@ const styles = StyleSheet.create({
   },
   gpsTargetIcon: {
     fontSize: 24,
+  },
+  stackedOffersContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 90 : 80,
+    left: 16,
+    right: 16,
+    zIndex: 1000,
   },
   searchPill: {
     position: 'absolute',

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -71,36 +71,48 @@ export const MyOrdersScreen = () => {
     setRefreshing(false);
   }, [fetchOrders]);
 
-  const activeOrders = orders.filter((order) => ACTIVE_STATUSES.includes(order.status));
-  const historyOrders = orders.filter((order) => !ACTIVE_STATUSES.includes(order.status));
+  const activeOrders = useMemo(() => orders.filter((order) => ACTIVE_STATUSES.includes(order.status)), [orders]);
+  const historyOrders = useMemo(() => orders.filter((order) => !ACTIVE_STATUSES.includes(order.status)), [orders]);
 
-  const renderOrderCard = useCallback((order: OrderData) => (
-    <View key={`order-${order.id}`} style={styles.orderCard}>
-      <View style={styles.orderRow}>
-        <Text style={styles.orderCode}>{order.code ? `#${order.code}` : `Order ${order.id}`}</Text>
-        <View style={[styles.statusBadge, order.status === 'assigned' ? styles.statusAssigned : styles.statusNeutral]}>
-          <Text style={styles.statusBadgeText}>{order.status?.toUpperCase()}</Text>
-        </View>
-      </View>
-      <Text style={styles.orderLabel}>Pickup</Text>
-      <Text style={styles.orderText}>{order.pickup?.address || 'Pickup location'}</Text>
-      <Text style={styles.orderLabel}>Dropoff</Text>
-      <Text style={styles.orderText}>{order.dropoff?.address || 'Dropoff location'}</Text>
-      <View style={styles.orderSummaryRow}>
-        <Text style={styles.orderSummaryText}>Distance: {order.estimatedDistance ?? 'N/A'}</Text>
-        {showPrice ? (
-          <Text style={styles.orderSummaryText}>Price: ₹{order.price ?? order.calculatedPrice ?? '0'}</Text>
-        ) : null}
-      </View>
-      <TouchableOpacity
-        style={styles.viewDetailsBtn}
-        onPress={() => navigation.navigate(ROUTES.ORDER_DETAILS, { order })}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.viewDetailsText}>View Details</Text>
-      </TouchableOpacity>
-    </View>
+  const renderOrderCardItem = useCallback(({ item }: { item: OrderData }) => (
+    <OrderCardItem order={item} showPrice={showPrice} navigation={navigation} />
   ), [navigation, showPrice]);
+
+  const keyExtractor = useCallback((item: OrderData) => `order-${item.id}`, []);
+
+  const listHeader = useMemo(() => (
+    <>
+      {error ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchOrders} activeOpacity={0.8}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Active Orders</Text>
+        {activeOrders.length === 0 && !loading ? (
+          <Text style={styles.emptyText}>No active orders at the moment.</Text>
+        ) : (
+          activeOrders.map((order: OrderData) => (
+            <OrderCardItem key={`active-${order.id}`} order={order} showPrice={showPrice} navigation={navigation} />
+          ))
+        )}
+      </View>
+
+      <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginTop: 10, marginBottom: 8 }]}>
+        Order History
+      </Text>
+    </>
+  ), [error, fetchOrders, activeOrders, loading, showPrice, navigation]);
+
+  const listEmpty = useMemo(() => (
+    historyOrders.length === 0 && !loading ? (
+      <Text style={[styles.emptyText, { paddingHorizontal: 20 }]}>No past orders yet.</Text>
+    ) : null
+  ), [historyOrders.length, loading]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -112,40 +124,50 @@ export const MyOrdersScreen = () => {
         <Text style={styles.headerTitle}>My Orders</Text>
         <View style={{ width: 44 }} />
       </View>
-      <ScrollView
+      <FlatList
+        data={historyOrders}
+        keyExtractor={keyExtractor}
+        renderItem={renderOrderCardItem}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
         contentContainerStyle={styles.content}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
-      >
-        {error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={fetchOrders} activeOpacity={0.8}>
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Active Orders</Text>
-          {activeOrders.length === 0 && !loading ? (
-            <Text style={styles.emptyText}>No active orders at the moment.</Text>
-          ) : (
-            activeOrders.map(renderOrderCard)
-          )}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Order History</Text>
-          {historyOrders.length === 0 && !loading ? (
-            <Text style={styles.emptyText}>No past orders yet.</Text>
-          ) : (
-            historyOrders.map(renderOrderCard)
-          )}
-        </View>
-      </ScrollView>
+      />
     </SafeAreaView>
   );
 };
+
+const OrderCardItem = React.memo(({ order, showPrice, navigation }: { order: OrderData; showPrice: boolean; navigation: any }) => (
+  <View style={styles.orderCard}>
+    <View style={styles.orderRow}>
+      <Text style={styles.orderCode}>{order.code ? `#${order.code}` : `Order ${order.id}`}</Text>
+      <View style={[styles.statusBadge, order.status === 'assigned' ? styles.statusAssigned : styles.statusNeutral]}>
+        <Text style={styles.statusBadgeText}>{order.status?.toUpperCase()}</Text>
+      </View>
+    </View>
+    <Text style={styles.orderLabel}>Pickup</Text>
+    <Text style={styles.orderText}>{order.pickup?.address || 'Pickup location'}</Text>
+    <Text style={styles.orderLabel}>Dropoff</Text>
+    <Text style={styles.orderText}>{order.dropoff?.address || 'Dropoff location'}</Text>
+    <View style={styles.orderSummaryRow}>
+      <Text style={styles.orderSummaryText}>Distance: {order.estimatedDistance ?? 'N/A'}</Text>
+      {showPrice ? (
+        <Text style={styles.orderSummaryText}>Price: ₹{order.price ?? order.calculatedPrice ?? '0'}</Text>
+      ) : null}
+    </View>
+    <TouchableOpacity
+      style={styles.viewDetailsBtn}
+      onPress={() => navigation.navigate(ROUTES.ORDER_DETAILS, { order })}
+      activeOpacity={0.8}
+    >
+      <Text style={styles.viewDetailsText}>View Details</Text>
+    </TouchableOpacity>
+  </View>
+));
 
 const styles = StyleSheet.create({
   container: {
