@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
@@ -53,6 +54,7 @@ const getPhotoKeyFromDocKey = (key?: string): string | null => {
 };
 
 export const DocumentsScreen = () => {
+  const insets = useSafeAreaInsets();
   const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -366,25 +368,25 @@ export const DocumentsScreen = () => {
   }, [hasNewUploads, refreshProfile, selectedFiles, showModal]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Loader visible={loading} message="Uploading documents..." />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Documents</Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 40 }} />
       </View>
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 36) }]}>
         <Text style={styles.title}>Upload and manage your documents</Text>
-        <Text style={styles.description}>
+        {/* <Text style={styles.description}>
           Keep your driver licence, insurance, and registration documents up to date. This section shows the status of each uploaded document.
-        </Text>
+        </Text> */}
 
         {/* Status Banner */}
         {authStatus === 'rejected' && (
           <View style={styles.rejectedBanner}>
-            <Text style={styles.rejectedBannerTitle}>⚠️ Document Verification Rejected</Text>
+            <Text style={styles.rejectedBannerTitle}> Document Verification Rejected</Text>
             <Text style={styles.rejectedBannerText}>
               {rejectedDocNames.length > 0
                 ? `Rejected document(s): ${rejectedDocNames.join(', ')}.\n${rejectionReason ? `Reason: ${rejectionReason}` : 'Please re-upload the highlighted document(s) below.'}`
@@ -418,8 +420,8 @@ export const DocumentsScreen = () => {
           </View>
         )}
 
-        <View style={styles.documentsGrid}>
-          {documentItems.map((item) => {
+        <View style={styles.documentsContainerCard}>
+          {documentItems.map((item, index) => {
             const isSelected = !!item.selectedFile;
             const isUploaded = !!item.uri;
             const displayUri = item.selectedFile?.uri || item.uri;
@@ -441,13 +443,13 @@ export const DocumentsScreen = () => {
               } else if (docStatus === 'approved') {
                 cardState = 'approved';
               } else {
-                // Default to approved if uploaded, unless overall status is pending
                 cardState = authStatus === 'pending' ? 'pending' : 'approved';
               }
             }
 
             const itemRejectionReason = docReason || rejectionReason;
             const isHighlighted = highlightedKey === item.key;
+            const isLast = index === documentItems.length - 1;
 
             return (
               <View
@@ -456,125 +458,99 @@ export const DocumentsScreen = () => {
                   cardLayoutsRef.current[item.key] = e.nativeEvent.layout.y;
                 }}
                 style={[
-                  styles.documentCard,
-                  cardState === 'rejected' && styles.documentCardRejected,
+                  styles.documentRowItem,
+                  !isLast && styles.rowDivider,
                   isHighlighted && styles.highlightedCardRing,
                 ]}
               >
-                <Text style={styles.documentLabel}>{item.label}</Text>
-
-                {displayUri ? (
-                  <TouchableOpacity
-                    style={[
-                      styles.imageWrapper,
-                      cardState === 'selected' && styles.imageWrapperSelected,
-                      cardState === 'rejected' && styles.imageWrapperRejected,
-                      cardState === 'approved' && styles.imageWrapperApproved,
-                      cardState === 'pending' && styles.imageWrapperPending,
-                    ]}
-                    onPress={() => openImagePreview(displayUri, item.label, cardState)}
-                    activeOpacity={0.85}
-                  >
+                {/* Left: Thumbnail Image Preview */}
+                <TouchableOpacity
+                  style={[
+                    styles.thumbnailWrapper,
+                    cardState === 'approved' && styles.thumbnailApproved,
+                    cardState === 'pending' && styles.thumbnailPending,
+                    cardState === 'rejected' && styles.thumbnailRejected,
+                    cardState === 'selected' && styles.thumbnailSelected,
+                  ]}
+                  onPress={() => {
+                    if (displayUri) {
+                      openImagePreview(displayUri, item.label, cardState);
+                    } else {
+                      selectDocument(item.key);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  {displayUri ? (
                     <Image
                       source={{ uri: displayUri }}
-                      style={styles.documentImage}
+                      style={styles.thumbnailImage}
                       resizeMode="cover"
                       onLoadStart={() => handleImageLoadStart(item.key)}
                       onLoadEnd={() => handleImageLoadEnd(item.key)}
                       onError={() => handleImageError(item.key)}
                     />
+                  ) : (
+                    <View style={styles.thumbnailPlaceholder}>
+                      <Text style={styles.placeholderText}>No Photo</Text>
+                    </View>
+                  )}
 
-                    {imageLoading[item.key] && (
-                      <View style={styles.imageLoadingOverlay}>
-                        <ActivityIndicator size="small" color="#0066FF" />
-                      </View>
-                    )}
+                  {imageLoading[item.key] && (
+                    <View style={styles.thumbnailLoadingOverlay}>
+                      <ActivityIndicator size="small" color="#0066FF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
 
-                    {/* Badge Overlay */}
-                    {cardState === 'rejected' && (
-                      <View style={[styles.badgeOverlay, styles.badgeRejected]}>
-                        <Text style={styles.badgeText}>✕ Rejected</Text>
-                      </View>
-                    )}
+                {/* Center: Title & Status Indicator */}
+                <View style={styles.docInfoCenter}>
+                  <Text style={styles.docTitleText}>{item.label}</Text>
+
+                  <View style={styles.statusRow}>
                     {cardState === 'approved' && (
-                      <View style={[styles.badgeOverlay, styles.badgeApproved]}>
-                        <Text style={styles.badgeText}>✓ Approved</Text>
-                      </View>
+                      <Text style={styles.statusApprovedText}>Approved</Text>
                     )}
                     {cardState === 'pending' && (
-                      <View style={[styles.badgeOverlay, styles.badgePending]}>
-                        <Text style={styles.badgeText}>⏳ Under Review</Text>
-                      </View>
+                      <Text style={styles.statusPendingText}>⏳ Under Review</Text>
+                    )}
+                    {cardState === 'rejected' && (
+                      <Text style={styles.statusRejectedText}>✕ Rejected</Text>
                     )}
                     {cardState === 'selected' && (
-                      <View style={[styles.badgeOverlay, styles.badgeSelected]}>
-                        <Text style={styles.badgeText}>Selected</Text>
-                      </View>
+                      <Text style={styles.statusSelectedText}>Selected</Text>
                     )}
-                  </TouchableOpacity>
-                ) : (
-                  <View style={styles.emptyDocument}>
-                    <Text style={styles.emptyPlaceholderIcon}>🆔</Text>
-                    <Text style={styles.emptyText}>No photo uploaded yet</Text>
-                    <Text style={styles.emptySubtext}>Tap button below to select photo</Text>
+                    {cardState === 'empty' && (
+                      <Text style={styles.statusEmptyText}>Not Uploaded</Text>
+                    )}
                   </View>
-                )}
 
-                {/* Rejection Reason Notice below image if rejected */}
-                {cardState === 'rejected' && (
-                  <View style={styles.rejectionReasonBox}>
-                    <Text style={styles.rejectionReasonText} numberOfLines={2}>
+                  {cardState === 'rejected' && (
+                    <Text style={styles.rejectionSubtext} numberOfLines={2}>
                       {itemRejectionReason ? `Reason: ${itemRejectionReason}` : 'Document rejected by admin'}
                     </Text>
-                  </View>
-                )}
+                  )}
+                </View>
 
-                {/* Status Text Indicator */}
-                <Text style={[
-                  styles.statusText,
-                  cardState === 'approved' && styles.statusApprovedText,
-                  cardState === 'pending' && styles.statusPendingText,
-                  cardState === 'rejected' && styles.statusRejectedText,
-                  cardState === 'selected' && styles.statusSelectedText,
-                  cardState === 'empty' && styles.statusEmptyText,
-                ]}>
-                  {cardState === 'selected' && 'Selected to upload'}
-                  {cardState === 'approved' && 'Approved'}
-                  {cardState === 'pending' && 'Under Review'}
-                  {cardState === 'rejected' && 'Rejected'}
-                  {cardState === 'empty' && 'Not uploaded'}
-                </Text>
-
-                {/* Action Buttons */}
-                {cardState === 'approved' && (
-                  <TouchableOpacity style={styles.approvedUpdateButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
-                    <Text style={styles.approvedUpdateButtonText}>Replace Photo</Text>
-                  </TouchableOpacity>
-                )}
-
-                {cardState === 'pending' && (
-                  <TouchableOpacity style={styles.approvedUpdateButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
-                    <Text style={styles.approvedUpdateButtonText}>Replace Photo</Text>
-                  </TouchableOpacity>
-                )}
-
-                {cardState === 'rejected' && (
-                  <TouchableOpacity style={[styles.selectButton, styles.uploadAgainButton]} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
-                    <Text style={styles.selectButtonText}>Upload Again</Text>
-                  </TouchableOpacity>
-                )}
-
-                {cardState === 'selected' && (
-                  <TouchableOpacity style={styles.selectButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
-                    <Text style={styles.selectButtonText}>Replace</Text>
-                  </TouchableOpacity>
-                )}
-
-                {cardState === 'empty' && (
-                  <TouchableOpacity style={styles.selectButton} onPress={() => selectDocument(item.key)} activeOpacity={0.8}>
-                    <Text style={styles.selectButtonText}>Upload</Text>
-                  </TouchableOpacity>
-                )}
+                {/* Right: Replace / Upload Action Button */}
+                <TouchableOpacity
+                  style={styles.actionBtnRight}
+                  onPress={() => selectDocument(item.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.actionBtnText,
+                      cardState === 'rejected' && styles.actionBtnTextRejected,
+                    ]}
+                  >
+                    {cardState === 'approved' && 'Replace'}
+                    {cardState === 'pending' && 'Replace'}
+                    {cardState === 'rejected' && 'Upload Again'}
+                    {cardState === 'selected' && 'Replace'}
+                    {cardState === 'empty' && 'Upload'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -607,7 +583,7 @@ export const DocumentsScreen = () => {
         status={previewModal.status}
         onClose={closeImagePreview}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -617,7 +593,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#061A3A',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 14,
     paddingHorizontal: 16,
     backgroundColor: '#0B2246',
@@ -628,21 +603,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
@@ -729,247 +706,140 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     lineHeight: 20,
   },
-  documentsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  documentCard: {
-    width: '48%',
+  documentsContainerCard: {
     backgroundColor: '#0B2246',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    padding: 14,
-    marginBottom: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  documentCardRejected: {
-    borderColor: '#EF4444',
-    backgroundColor: '#121F38',
+  documentRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  documentLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-    marginBottom: 12,
+  rowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E3A8A',
   },
-  imageWrapper: {
-    position: 'relative',
-    width: '100%',
-    height: 140,
+  thumbnailWrapper: {
+    width: 76,
+    height: 76,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#0D2A54',
+    borderWidth: 1.5,
+    borderColor: '#1E3A8A',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  imageWrapperSelected: {
-    borderWidth: 2,
-    borderColor: '#0066FF',
+  thumbnailApproved: {
+    // borderColor: '#22C55E',
   },
-  imageWrapperRejected: {
-    borderWidth: 2,
-    borderColor: '#EF4444',
-  },
-  imageWrapperApproved: {
-    borderWidth: 1.5,
-    borderColor: '#10B981',
-  },
-  imageWrapperPending: {
-    borderWidth: 1.5,
+  thumbnailPending: {
     borderColor: '#F59E0B',
   },
-  documentImage: {
+  thumbnailRejected: {
+    borderColor: '#EF4444',
+  },
+  thumbnailSelected: {
+    borderColor: '#0066FF',
+    borderWidth: 2,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbnailPlaceholder: {
     width: '100%',
     height: '100%',
     backgroundColor: '#0D2A54',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
   },
-  imageLoadingOverlay: {
-    ...StyleSheet.absoluteFill,
+  placeholderText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+  },
+  thumbnailLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(11, 34, 70, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyPlaceholderIcon: {
-    fontSize: 28,
+  docInfoCenter: {
+    flex: 1,
+    marginLeft: 16,
+    marginRight: 12,
+    justifyContent: 'center',
+  },
+  docTitleText: {
+    fontSize: 17,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
-  emptySubtext: {
-    color: '#64748B',
-    fontSize: 10,
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  failedImageWrapper: {
-    backgroundColor: '#0D2A54',
-    justifyContent: 'center',
+  statusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  failedImageContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  failedImageText: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    textAlign: 'center',
-  },
-  failedImageSubtext: {
-    color: '#64748B',
-    fontSize: 11,
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  badgeOverlay: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    zIndex: 10,
-  },
-  badgeRejected: {
-    backgroundColor: '#DC2626',
-  },
-  badgeApproved: {
-    backgroundColor: '#059669',
-  },
-  badgePending: {
-    backgroundColor: '#D97706',
-  },
-  badgeSelected: {
-    backgroundColor: '#0066FF',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-  },
-  emptyDocument: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    backgroundColor: '#0D2A54',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#94A3B8',
-    textAlign: 'center',
+  statusApprovedText: {
+    color: '#22C55E',
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
-  },
-  rejectionReasonBox: {
-    marginTop: 10,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  rejectionReasonText: {
-    color: '#FCA5A5',
-    fontSize: 12,
     fontWeight: '500',
     fontFamily: 'Inter-Medium',
   },
-  statusText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-  },
-  statusApprovedText: {
-    color: '#10B981',
-  },
   statusPendingText: {
     color: '#F59E0B',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   statusRejectedText: {
     color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   statusSelectedText: {
-    color: '#0066FF',
+    color: '#60A5FA',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   statusEmptyText: {
     color: '#94A3B8',
-  },
-  statusPillBtn: {
-    marginTop: 12,
-    borderRadius: 14,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusPillApproved: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  statusPillPending: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-  },
-  statusPillTextApproved: {
-    color: '#10B981',
     fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
+  },
+  rejectionSubtext: {
+    color: '#FCA5A5',
+    fontSize: 12,
+    marginTop: 2,
+    fontFamily: 'Inter-Regular',
+  },
+  actionBtnRight: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  actionBtnText: {
+    color: '#0066FF',
+    fontSize: 15,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
   },
-  statusPillTextPending: {
-    color: '#F59E0B',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-  },
-  selectButton: {
-    marginTop: 12,
-    borderRadius: 14,
-    backgroundColor: '#0066FF',
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uploadAgainButton: {
-    backgroundColor: '#EF4444',
-  },
-  selectButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-  },
-  approvedUpdateButton: {
-    marginTop: 12,
-    borderRadius: 14,
-    backgroundColor: '#0D2A54',
-    borderWidth: 1,
-    borderColor: '#16325B',
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  approvedUpdateButtonText: {
-    color: '#60A5FA',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
+  actionBtnTextRejected: {
+    color: '#EF4444',
   },
   submitButton: {
     marginTop: 16,

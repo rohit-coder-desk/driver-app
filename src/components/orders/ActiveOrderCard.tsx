@@ -12,7 +12,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { OrderData } from '../../services/OrderService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { OrderData, OrderService } from '../../services/OrderService';
 import { COLORS } from '../../constants/colors';
 import { CustomDriverModal } from '../common/CustomDriverModal';
 import apiClient from '../../api/axios';
@@ -23,6 +24,8 @@ interface ActiveOrderCardProps {
   onConfirmPickup: () => void;
   onReachedDestination?: () => void;
   onCompleteDelivery: () => void;
+  onCancelOrderSuccess?: () => void;
+  onCheckOnlineState?: () => boolean;
   loading?: boolean;
 }
 
@@ -39,8 +42,11 @@ export const ActiveOrderCard = ({
   onConfirmPickup,
   onReachedDestination,
   onCompleteDelivery,
+  onCancelOrderSuccess,
+  onCheckOnlineState,
   loading = false,
 }: ActiveOrderCardProps) => {
+  const insets = useSafeAreaInsets();
   const [chatVisible, setChatVisible] = useState(false);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -54,6 +60,94 @@ export const ActiveOrderCard = ({
     title: '',
     message: '',
   });
+
+  // Cancellation Flow States
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [reasonModalVisible, setReasonModalVisible] = useState(false);
+  const [adminReasons, setAdminReasons] = useState<any[]>([]);
+  const [selectedReason, setSelectedReason] = useState<string>('');
+  const [selectedReasonName, setSelectedReasonName] = useState<string>('');
+  const [customReasonText, setCustomReasonText] = useState('');
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [reasonsLoading, setReasonsLoading] = useState(false);
+  const [reasonValidationError, setReasonValidationError] = useState('');
+
+  const handleOpenConfirmModal = () => {
+    if (onCheckOnlineState && !onCheckOnlineState()) {
+      return;
+    }
+    setConfirmModalVisible(true);
+  };
+
+  const handleProceedToReasons = async () => {
+    setConfirmModalVisible(false);
+    setReasonModalVisible(true);
+    setSelectedReason('');
+    setSelectedReasonName('');
+    setCustomReasonText('');
+    setReasonValidationError('');
+    setReasonsLoading(true);
+
+    try {
+      const data = await OrderService.getFailureReasons();
+      const filtered = Array.isArray(data)
+        ? data.filter((item: any) => {
+            if (item.isActive === false) return false;
+            const t = (item.type || '').toLowerCase().trim();
+            return t === 'delivery_failed' || t === 'delivery failed';
+          })
+        : [];
+      setAdminReasons(filtered);
+    } catch (err) {
+      console.warn('Error fetching failure reasons:', err);
+      setAdminReasons([]);
+    } finally {
+      setReasonsLoading(false);
+    }
+  };
+
+  const handleSubmitCancellation = async () => {
+    if (submittingCancel) return;
+    if (onCheckOnlineState && !onCheckOnlineState()) return;
+
+    if (!selectedReason) {
+      setReasonValidationError('Please select a failure reason before continuing.');
+      return;
+    }
+
+    let finalReason = '';
+    if (selectedReason === 'other') {
+      const trimmed = customReasonText.trim();
+      if (!trimmed) {
+        setReasonValidationError('Please enter a reason before continuing.');
+        return;
+      }
+      finalReason = trimmed;
+    } else {
+      finalReason = selectedReasonName || selectedReason;
+    }
+
+    setReasonValidationError('');
+    setSubmittingCancel(true);
+
+    try {
+      await OrderService.cancelOrder(order.id, finalReason);
+      setSubmittingCancel(false);
+      setReasonModalVisible(false);
+
+      if (onCancelOrderSuccess) {
+        onCancelOrderSuccess();
+      }
+    } catch (error: any) {
+      setSubmittingCancel(false);
+      const msg = typeof error === 'string' ? error : error?.message || 'Failed to cancel order.';
+      setAlertModalConfig({
+        visible: true,
+        title: 'Cancellation Failed',
+        message: msg,
+      });
+    }
+  };
 
   useEffect(() => {
     if (chatVisible && order?.id) {
@@ -149,7 +243,7 @@ export const ActiveOrderCard = ({
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: Math.max(insets.bottom + 8, 16) }]}>
       {/* Top Header: Stage Status Badge */}
       <View style={styles.topRow}>
         <View style={[styles.stageBadge, isPickedUp ? styles.deliveryBadge : styles.pickupBadge]}>
@@ -260,16 +354,32 @@ export const ActiveOrderCard = ({
           </Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity
-          style={styles.actionBtnDelivery}
-          onPress={onCompleteDelivery}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.actionBtnText}>
-            {loading ? 'Updating...' : 'Complete Delivery'}
-          </Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            style={styles.actionBtnDelivery}
+            onPress={onCompleteDelivery}
+            disabled={loading || submittingCancel}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.actionBtnText}>
+              {loading ? 'Updating...' : 'Complete Delivery'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Secondary Danger Action: Cancel Order (Only at Delivery Location stage) */}
+          {isNearDestination && (
+            <TouchableOpacity
+              style={styles.cancelOrderDangerBtn}
+              onPress={handleOpenConfirmModal}
+              disabled={loading || submittingCancel}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.cancelOrderDangerBtnText}>
+                Cancel Order
+              </Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
 
       {/* Interactive Customer Chat Modal */}
@@ -343,6 +453,178 @@ export const ActiveOrderCard = ({
 
               <TouchableOpacity style={styles.sendBtn} onPress={() => handleSendMessage()}>
                 <Text style={styles.sendBtnText}>Send</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 1. Cancellation Confirmation Modal */}
+      <Modal
+        visible={confirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmModalVisible(false)}
+      >
+        <View style={styles.modalBackdropCenter}>
+          <View style={styles.confirmDialogBox}>
+            <Text style={styles.confirmDialogTitle}>Cancel Order?</Text>
+            <Text style={styles.confirmDialogMessage}>
+              Are you sure you want to cancel this order?
+            </Text>
+
+            <View style={styles.confirmDialogButtonsRow}>
+              <TouchableOpacity
+                style={styles.confirmGoBackBtn}
+                onPress={() => setConfirmModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmGoBackBtnText}>No, Go Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmProceedCancelBtn}
+                onPress={handleProceedToReasons}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmProceedCancelBtnText}>Yes, Cancel Order</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 2. Failure Reason Selection Modal */}
+      <Modal
+        visible={reasonModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!submittingCancel) setReasonModalVisible(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.reasonModalContainer}>
+            <View style={styles.chatHeader}>
+              <View style={styles.chatHeaderLeft}>
+                <Text style={styles.chatHeaderTitle}>Delivery Failed Reasons</Text>
+                <Text style={styles.chatHeaderSubtitle}>
+                  Please choose a reason for cancelling Order #{order.code || order.id}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeChatBtn}
+                onPress={() => {
+                  if (!submittingCancel) setReasonModalVisible(false);
+                }}
+                disabled={submittingCancel}
+              >
+                <Text style={styles.closeChatText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.reasonListScroll} contentContainerStyle={styles.reasonListContent}>
+              {reasonsLoading ? (
+                <View style={styles.reasonsLoadingBox}>
+                  <ActivityIndicator size="small" color="#0066FF" />
+                  <Text style={styles.reasonsLoadingText}>Loading failure reasons...</Text>
+                </View>
+              ) : (
+                <>
+                  {adminReasons.map((item) => {
+                    const isSelected = selectedReason === item.id.toString();
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.reasonOptionCard, isSelected && styles.reasonOptionCardSelected]}
+                        onPress={() => {
+                          setSelectedReason(item.id.toString());
+                          setSelectedReasonName(item.name);
+                          setReasonValidationError('');
+                        }}
+                        activeOpacity={0.8}
+                        disabled={submittingCancel}
+                      >
+                        <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                          {isSelected && <View style={styles.radioDot} />}
+                        </View>
+                        <View style={styles.reasonTextWrap}>
+                          <Text style={styles.reasonNameText}>{item.name}</Text>
+                          {item.description ? (
+                            <Text style={styles.reasonDescText}>{item.description}</Text>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* "Other" Option */}
+                  <TouchableOpacity
+                    style={[styles.reasonOptionCard, selectedReason === 'other' && styles.reasonOptionCardSelected]}
+                    onPress={() => {
+                      setSelectedReason('other');
+                      setSelectedReasonName('Other');
+                      setReasonValidationError('');
+                    }}
+                    activeOpacity={0.8}
+                    disabled={submittingCancel}
+                  >
+                    <View style={[styles.radioCircle, selectedReason === 'other' && styles.radioCircleSelected]}>
+                      {selectedReason === 'other' && <View style={styles.radioDot} />}
+                    </View>
+                    <View style={styles.reasonTextWrap}>
+                      <Text style={styles.reasonNameText}>Other</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Custom Reason Text Input Area when "Other" is selected */}
+                  {selectedReason === 'other' && (
+                    <View style={styles.customReasonInputBox}>
+                      <Text style={styles.customReasonLabel}>Reason</Text>
+                      <TextInput
+                        style={styles.customReasonTextInput}
+                        placeholder="Please enter the reason..."
+                        placeholderTextColor="#94A3B8"
+                        multiline
+                        numberOfLines={3}
+                        value={customReasonText}
+                        onChangeText={(text) => {
+                          setCustomReasonText(text);
+                          setReasonValidationError('');
+                        }}
+                        editable={!submittingCancel}
+                      />
+                    </View>
+                  )}
+
+                  {reasonValidationError ? (
+                    <Text style={styles.validationErrorText}>{reasonValidationError}</Text>
+                  ) : null}
+                </>
+              )}
+            </ScrollView>
+
+            <View style={styles.reasonModalFooter}>
+              <TouchableOpacity
+                style={styles.reasonCancelBtn}
+                onPress={() => setReasonModalVisible(false)}
+                disabled={submittingCancel}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.reasonCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.reasonSubmitBtn, submittingCancel && styles.reasonSubmitBtnDisabled]}
+                onPress={handleSubmitCancellation}
+                disabled={submittingCancel || reasonsLoading}
+                activeOpacity={0.85}
+              >
+                {submittingCancel ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.reasonSubmitBtnText}>Submit Cancellation</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -752,6 +1034,239 @@ const styles = StyleSheet.create({
   sendBtnText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+
+  // Cancellation Flow Styles
+  cancelOrderDangerBtn: {
+    height: 48,
+    backgroundColor: 'transparent',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    marginTop: 10,
+  },
+  cancelOrderDangerBtnText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+  modalBackdropCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 26, 58, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  confirmDialogBox: {
+    width: '100%',
+    backgroundColor: '#0B2246',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  confirmDialogTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  confirmDialogMessage: {
+    fontSize: 15,
+    fontFamily: 'Inter-Regular',
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  confirmDialogButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  confirmGoBackBtn: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#0D2A54',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  confirmGoBackBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+  confirmProceedCancelBtn: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#EF4444',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmProceedCancelBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+  reasonModalContainer: {
+    backgroundColor: '#0B2246',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  reasonListScroll: {
+    maxHeight: 320,
+    marginVertical: 14,
+  },
+  reasonListContent: {
+    gap: 10,
+  },
+  reasonsLoadingBox: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  reasonsLoadingText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  reasonOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D2A54',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  reasonOptionCardSelected: {
+    borderColor: '#0066FF',
+    backgroundColor: '#123363',
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioCircleSelected: {
+    borderColor: '#0066FF',
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#0066FF',
+  },
+  reasonTextWrap: {
+    flex: 1,
+  },
+  reasonNameText: {
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+  },
+  reasonDescText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  customReasonInputBox: {
+    marginTop: 10,
+    backgroundColor: '#0D2A54',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    padding: 12,
+  },
+  customReasonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  customReasonTextInput: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#FFFFFF',
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
+  validationErrorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  reasonModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#1E3A8A',
+  },
+  reasonCancelBtn: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#0D2A54',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+  },
+  reasonCancelBtnText: {
+    color: '#94A3B8',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+  reasonSubmitBtn: {
+    flex: 1.5,
+    height: 48,
+    backgroundColor: '#EF4444',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reasonSubmitBtnDisabled: {
+    opacity: 0.6,
+  },
+  reasonSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
   },

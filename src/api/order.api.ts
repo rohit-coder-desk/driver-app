@@ -16,6 +16,12 @@ export const orderApi = {
   updateOrderStatus: (id: number, status: string, paymentMethod?: string) => {
     return apiClient.put(`/api/orders/${id}/status`, { status, paymentMethod });
   },
+  cancelOrder: (id: number, reason: string) => {
+    return apiClient.put(`/api/orders/${id}/status`, { status: 'cancelled', cancellationReason: reason, failedReason: reason });
+  },
+  getFailureReasons: () => {
+    return apiClient.get('/api/failure-reasons');
+  },
   rateCustomer: (id: number, rating: number, review?: string) => {
     return apiClient.put(`/api/orders/${id}/rate-customer`, { rating, review });
   },

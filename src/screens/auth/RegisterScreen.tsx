@@ -14,6 +14,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
@@ -22,6 +23,7 @@ import { EyeIcon } from '../../components/common/EyeIcon';
 import { ALL_COUNTRY_CODES, CountryCode } from '../../constants/countryCodes';
 
 export const RegisterScreen = () => {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>(ALL_COUNTRY_CODES[0]);
@@ -131,11 +133,18 @@ export const RegisterScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
       <StatusBar barStyle="light-content" backgroundColor="#061A3A" />
-      <View style={styles.innerContainer}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.innerContainer,
+          { paddingTop: Math.max(insets.top + 16, 24), paddingBottom: Math.max(insets.bottom + 20, 24) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Loader visible={loading} message="Registering Driver..." />
 
         {/* Top Header & Branding */}
@@ -289,7 +298,7 @@ export const RegisterScreen = () => {
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>Dispatcher Logistics Partner Platform</Text>
         </View>
-      </View>
+      </ScrollView>
 
       {/* Country Code Selection Modal */}
       <Modal
@@ -349,6 +358,25 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 20,
+    position: 'relative',
+    width: '100%',
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0D2A54',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
   },
   logoBadge: {
     width: 84,

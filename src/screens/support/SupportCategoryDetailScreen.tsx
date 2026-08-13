@@ -11,12 +11,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { SUPPORT_CATEGORIES, SupportCategory, SupportIssue } from '../../data/supportCategories';
 import { CategoryVectorIcon } from '../../components/common/Icons';
 
 export const SupportCategoryDetailScreen = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const categoryId = route.params?.categoryId || 'documents';
@@ -63,11 +65,11 @@ export const SupportCategoryDetailScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.surface} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
 
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={handleBack}
@@ -82,12 +84,12 @@ export const SupportCategoryDetailScreen = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 36) }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Category Hero Banner */}
         <View style={styles.heroCard}>
-          <View style={styles.iconCircle}>
-            <CategoryVectorIcon type={category.id} color="#60A5FA" size={26} />
-          </View>
           <View style={styles.heroTextWrap}>
             <Text style={styles.eyebrow}>Support Category</Text>
             <Text style={styles.title}>{category.title}</Text>
@@ -129,7 +131,7 @@ export const SupportCategoryDetailScreen = () => {
                         onPress={() => handleActionClick(issue.actionRoute)}
                         activeOpacity={0.85}
                       >
-                        <Text style={styles.actionRouteBtnText}>{issue.actionText} →</Text>
+                        <Text style={styles.actionRouteBtnText}>{issue.actionText}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -163,7 +165,7 @@ export const SupportCategoryDetailScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -173,7 +175,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 12,
     paddingHorizontal: 16,
     backgroundColor: COLORS.surface,
@@ -184,23 +185,23 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   backBtn: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 24,
+    borderRadius: 20,
     backgroundColor: COLORS.surfaceSoft,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     color: COLORS.textPrimary,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: COLORS.textPrimary,
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   headerSpacer: {
-    width: 48,
+    width: 40,
   },
   content: {
     padding: 20,
@@ -219,8 +220,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
@@ -283,8 +282,6 @@ const styles = StyleSheet.create({
   issueCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     overflow: 'hidden',
   },
   issueHeader: {

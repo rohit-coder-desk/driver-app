@@ -12,6 +12,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { OrderData, OrderService } from '../../services/OrderService';
 import { DriverService } from '../../services/DriverService';
@@ -22,6 +23,7 @@ import { Loader } from '../../components/common/Loader';
 const ACTIVE_STATUSES = ['assigned', 'arrived', 'picked_up', 'near_destination'];
 
 export const MyOrdersScreen = () => {
+  const insets = useSafeAreaInsets();
   const { driver } = useAuth();
   const navigation = useNavigation<any>();
   const [orders, setOrders] = useState<OrderData[]>([]);
@@ -115,14 +117,15 @@ export const MyOrdersScreen = () => {
   ), [historyOrders.length, loading]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
       <Loader visible={loading && !refreshing} message="Loading orders..." />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Orders</Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 40 }} />
       </View>
       <FlatList
         data={historyOrders}
@@ -130,14 +133,14 @@ export const MyOrdersScreen = () => {
         renderItem={renderOrderCardItem}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 20, 24) }]}
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -153,18 +156,18 @@ const OrderCardItem = React.memo(({ order, showPrice, navigation }: { order: Ord
     <Text style={styles.orderText}>{order.pickup?.address || 'Pickup location'}</Text>
     <Text style={styles.orderLabel}>Dropoff</Text>
     <Text style={styles.orderText}>{order.dropoff?.address || 'Dropoff location'}</Text>
-    <View style={styles.orderSummaryRow}>
-      <Text style={styles.orderSummaryText}>Distance: {order.estimatedDistance ?? 'N/A'}</Text>
-      {showPrice ? (
-        <Text style={styles.orderSummaryText}>Price: ₹{order.price ?? order.calculatedPrice ?? '0'}</Text>
-      ) : null}
-    </View>
+    {showPrice ? (
+      <>
+        <Text style={styles.orderLabel}>Price</Text>
+        <Text style={styles.orderPrice}>₹{order.price ?? order.calculatedPrice ?? '0'}</Text>
+      </>
+    ) : null}
     <TouchableOpacity
-      style={styles.viewDetailsBtn}
+      style={styles.detailsBtnBottomRight}
       onPress={() => navigation.navigate(ROUTES.ORDER_DETAILS, { order })}
       activeOpacity={0.8}
     >
-      <Text style={styles.viewDetailsText}>View Details</Text>
+      <Text style={styles.detailsBtnText}>View Details</Text>
     </TouchableOpacity>
   </View>
 ));
@@ -175,7 +178,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#061A3A',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 14,
     paddingHorizontal: 16,
     backgroundColor: '#0B2246',
@@ -186,21 +188,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
@@ -214,8 +218,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
   },
   sectionTitle: {
     fontSize: 22,
@@ -228,8 +230,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2A54',
     padding: 18,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
     marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
@@ -242,6 +242,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  detailsBtnBottomRight: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#0066FF',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  detailsBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   orderCode: {
     fontSize: 18,

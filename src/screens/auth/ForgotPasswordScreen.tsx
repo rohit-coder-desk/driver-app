@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthService } from '../../services/AuthService';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
@@ -21,6 +22,7 @@ import { ALL_COUNTRY_CODES, CountryCode } from '../../constants/countryCodes';
 import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 
 export const ForgotPasswordScreen = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
   // Step state: 1 = Send OTP (Enter Phone), 2 = Verify OTP & Reset Password
@@ -145,10 +147,16 @@ export const ForgotPasswordScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContainer,
+          { paddingTop: Math.max(insets.top + 16, 24), paddingBottom: Math.max(insets.bottom + 20, 24) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <Loader visible={loading} message={step === 1 ? 'Sending OTP...' : 'Resetting Password...'} />
 
         {/* Back Link */}

@@ -23,7 +23,10 @@ export interface OrderData {
   price?: number;
   calculatedPrice?: number;
   estimatedDistance?: number | string;
+  cancellationReason?: string;
+  failedReason?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WorkingTypeVisibilityConfig {
@@ -207,6 +210,25 @@ export const OrderService = {
       return response.data;
     } catch (error: any) {
       throw error.response?.data?.message || 'Failed to update order status.';
+    }
+  },
+
+  cancelOrder: async (orderId: number, reason: string) => {
+    try {
+      const response = await orderApi.cancelOrder(orderId, reason);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || 'Failed to cancel order.';
+    }
+  },
+
+  getFailureReasons: async () => {
+    try {
+      const response = await orderApi.getFailureReasons();
+      return response.data || [];
+    } catch (error: any) {
+      console.warn('Error fetching failure reasons:', error);
+      return [];
     }
   },
 

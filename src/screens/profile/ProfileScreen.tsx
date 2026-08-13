@@ -12,12 +12,12 @@ import {
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
 import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 import { DatePickerModal } from '../../components/common/DatePickerModal';
-import { CalendarIcon } from '../../components/common/Icons';
 import { ROUTES } from '../../constants/routes';
 
 interface InputFieldProps {
@@ -65,12 +65,12 @@ const DatePickerInputField = memo(({ label, value, onPress, placeholder }: { lab
       <Text style={[styles.dateInputText, !value && styles.dateInputPlaceholder]}>
         {value || placeholder}
       </Text>
-      <CalendarIcon color="#94A3B8" size={20} />
     </View>
   </TouchableOpacity>
 ));
 
 export const ProfileScreen = () => {
+  const insets = useSafeAreaInsets();
   const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
 
@@ -332,12 +332,12 @@ export const ProfileScreen = () => {
   }, [address, city, driver, drivingLicenceExpiry, drivingLicenceNumber, email, insuranceExpiry, name, navigation, phone, rcExpiry, refreshProfile, showModal, vehicleBrand, vehicleColor, vehicleModel, vehiclePlate]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Loader visible={loading} message="Updating profile details..." />
       <StatusBar backgroundColor="#0B2246" barStyle="light-content" />
 
       {/* Header bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={handleBack}
@@ -353,10 +353,10 @@ export const ProfileScreen = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoiding}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 24, 32) }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -489,7 +489,7 @@ export const ProfileScreen = () => {
         onSelect={handleDateSelect}
         onClose={() => setActiveDatePickerField(null)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -499,7 +499,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#061A3A',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 12,
     paddingBottom: 16,
     paddingHorizontal: 20,
     backgroundColor: '#0B2246',
@@ -510,21 +509,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
   },
   backButtonText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',

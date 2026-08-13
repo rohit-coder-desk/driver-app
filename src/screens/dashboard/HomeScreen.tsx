@@ -24,6 +24,7 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { ServiceAreaConfig } from '../../types/serviceArea.types';
 import { DEFAULT_SERVICE_AREA, clampRegionToBounds, isRegionOutOfBounds } from '../../utils/mapBoundaryUtils';
@@ -53,6 +54,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export const HomeScreen = () => {
+  const insets = useSafeAreaInsets();
   const { driver, logout, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -76,6 +78,17 @@ export const HomeScreen = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
   const lastPromptedExpiryRef = useRef<string | null>(null);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return 'Good Morning,';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good Afternoon,';
+    } else {
+      return 'Good Evening,';
+    }
+  };
   const shownSessionWarningStagesRef = useRef<Set<string>>(new Set());
 
   // Workflow Dialog Modal State
@@ -1072,7 +1085,17 @@ export const HomeScreen = () => {
     (!driver?.drivingLicencePhoto || !driver?.rcPhoto || !driver?.insurancePhoto || !driver?.avatarPhoto);
 
   const isApprovedAndReady = driver?.authorizationStatus === 'approved';
-  console.log(`[STEP-15] [HOME SCREEN RENDER] authStatus="${driver?.authorizationStatus}", isApprovedAndReady=${isApprovedAndReady}`);
+
+  const handleCancelOrderSuccess = () => {
+    setActiveOrder(null);
+    setRouteCoordinates([]);
+    showDriverModal(
+      'info',
+      'Order Cancelled',
+      'The delivery order has been cancelled successfully.',
+      'OK'
+    );
+  };
 
   return (
     <View style={[styles.container, !isApprovedAndReady && { backgroundColor: '#061A3A' }]}>
@@ -1224,7 +1247,7 @@ export const HomeScreen = () => {
       )}
 
       {/* Top Header Card matching reference image */}
-      <View style={styles.floatingHeaderCard}>
+      <View style={[styles.floatingHeaderCard, { top: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 28) }]}>
         {/* Hamburger Menu Trigger */}
         <TouchableOpacity
           style={styles.hamburgerBtn}
@@ -1234,24 +1257,14 @@ export const HomeScreen = () => {
           <Text style={styles.hamburgerIconText}>☰</Text>
         </TouchableOpacity>
 
-        {/* Driver Name & Phone / Vehicle Plate */}
+        {/* Driver Name & Time-of-Day Greeting */}
         <View style={styles.headerInfoCol}>
-          <Text style={styles.driverNameTitle} numberOfLines={1}>
-            {'Welcome'}
+          <Text style={styles.greetingText} numberOfLines={1}>
+            {getGreeting()}
           </Text>
-
           <Text style={styles.driverNameTitle} numberOfLines={1}>
             {driver?.name || 'Driver'}
           </Text>
-          {driver?.phone ? (
-            <Text style={styles.driverIdSubtitle} numberOfLines={1}>
-              {driver.phone}
-            </Text>
-          ) : driver?.vehiclePlate ? (
-            <Text style={styles.driverIdSubtitle} numberOfLines={1}>
-              {driver.vehiclePlate}
-            </Text>
-          ) : null}
         </View>
 
         {/* Right Status Pill & Switch Toggle */}
@@ -1273,7 +1286,7 @@ export const HomeScreen = () => {
       {/* Floating Expiry Warning Banner (30, 15, 7, 3, 1, 0 days) */}
       {(driver?.warningBanner || driver?.docExpiryInfo?.warningBanner) && (
         <TouchableOpacity
-          style={styles.warningBannerContainer}
+          style={[styles.warningBannerContainer, { top: Math.max(insets.top + 76, 92) }]}
           onPress={() => {
             const warningDoc = driver?.docExpiryInfo?.warningDocuments?.[0];
             const targetDocKey = warningDoc?.key || 'insurance';
@@ -1291,7 +1304,10 @@ export const HomeScreen = () => {
       {/* Floating GPS Recenter Button - Only visible when Online */}
       {isOnline && (
         <TouchableOpacity
-          style={styles.recenterButton}
+          style={[
+            styles.recenterButton,
+            { bottom: activeOrder ? Math.max(insets.bottom + 230, 240) : Math.max(insets.bottom + 76, 84) },
+          ]}
           onPress={centerMapOnDriver}
           activeOpacity={0.8}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1308,11 +1324,13 @@ export const HomeScreen = () => {
           onConfirmPickup={handleConfirmPickup}
           onReachedDestination={handleReachedDestination}
           onCompleteDelivery={handleOpenPaymentModal}
+          onCancelOrderSuccess={handleCancelOrderSuccess}
+          onCheckOnlineState={ensureOnlineForDeliveryAction}
           loading={actionLoading}
         />
       ) : driver?.docExpiryInfo?.hasExpiredDocs ? (
         <TouchableOpacity
-          style={styles.rejectedCard}
+          style={[styles.rejectedCard, { bottom: Math.max(insets.bottom + 12, 20) }]}
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
@@ -1323,7 +1341,7 @@ export const HomeScreen = () => {
         </TouchableOpacity>
       ) : isProfileIncomplete ? (
         <TouchableOpacity
-          style={styles.completeProfileCard}
+          style={[styles.completeProfileCard, { bottom: Math.max(insets.bottom + 12, 20) }]}
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
@@ -1333,13 +1351,13 @@ export const HomeScreen = () => {
           </Text>
         </TouchableOpacity>
       ) : driver?.authorizationStatus === 'pending' ? (
-        <View style={styles.submittedCard}>
+        <View style={[styles.submittedCard, { bottom: Math.max(insets.bottom + 12, 20) }]}>
           <Text style={styles.submittedTitle}>Documents Submitted</Text>
           <Text style={styles.submittedSubtitle}>Waiting for Approval</Text>
         </View>
       ) : driver?.authorizationStatus === 'rejected' ? (
         <TouchableOpacity
-          style={styles.rejectedCard}
+          style={[styles.rejectedCard, { bottom: Math.max(insets.bottom + 12, 20) }]}
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
@@ -1374,14 +1392,14 @@ export const HomeScreen = () => {
         </TouchableOpacity>
       ) : isOnline ? (
         /* When approved and active online, show the status pill */
-        <View style={styles.searchPill}>
+        <View style={[styles.searchPill, { bottom: Math.max(insets.bottom + 12, 20) }]}>
           {/* <Text style={styles.searchPillIcon}>🔍</Text */}
           <Text style={styles.searchPillText}>Waiting for offers...</Text>
         </View>
       ) : (
         /* When approved and active offline, show the big "Go Online" button at the bottom */
         <TouchableOpacity
-          style={styles.bigGoOnlineBtn}
+          style={[styles.bigGoOnlineBtn, { bottom: Math.max(insets.bottom + 12, 20) }]}
           onPress={() => handleToggleOnline(true)}
           activeOpacity={0.9}
         >
@@ -1391,7 +1409,7 @@ export const HomeScreen = () => {
 
       {/* Floating Stacked Incoming Offers Container (Newest -> Oldest) */}
       {isOnline && incomingOffers.length > 0 ? (
-        <View style={styles.stackedOffersContainer}>
+        <View style={[styles.stackedOffersContainer, { bottom: Math.max(insets.bottom + 72, 80) }]}>
           <ScrollView
             style={{ maxHeight: height * 0.45 }}
             contentContainerStyle={{ paddingBottom: 4 }}
@@ -1464,7 +1482,7 @@ export const HomeScreen = () => {
             <View style={styles.drawerMainContent}>
               {/* Drawer Header - Tapping opens My Profile */}
               <TouchableOpacity
-                style={styles.drawerHeader}
+                style={[styles.drawerHeader, { paddingTop: Math.max(insets.top + 16, 40) }]}
                 onPress={() => {
                   setDrawerOpen(false);
                   navigation.navigate(ROUTES.MY_PROFILE);
@@ -1588,7 +1606,7 @@ export const HomeScreen = () => {
             </View>
 
             {/* Drawer Bottom Logout Button - FIXED AT VERY BOTTOM */}
-            <View style={styles.drawerFooter}>
+            <View style={[styles.drawerFooter, { paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
               <TouchableOpacity
                 style={styles.logoutBtn}
                 onPress={handleLogout}
@@ -1739,17 +1757,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   greetingText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '400',
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
+    marginBottom: 2,
   },
   driverNameTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    marginVertical: 1,
   },
   driverIdSubtitle: {
     fontSize: 14,

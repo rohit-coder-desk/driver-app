@@ -13,6 +13,7 @@ import {
   Linking,
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../../api/axios';
 
 export interface ChatMessage {
@@ -40,6 +41,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   customerPhone,
   onBack,
 }) => {
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -113,14 +115,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
           {onBack ? (
             <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
               <Text style={styles.backBtnText}>←</Text>
@@ -202,7 +205,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         )}
 
         {/* Input Bar */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom + 8, 12) }]}>
           <TextInput
             style={styles.input}
             placeholder="Type a message..."
@@ -225,7 +228,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -238,22 +241,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     backgroundColor: '#0B2246',
     borderBottomWidth: 1,
     borderBottomColor: '#1E3A8A',
   },
   backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',

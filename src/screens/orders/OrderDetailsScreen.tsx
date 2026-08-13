@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Platform, StatusBar, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { OrderData } from '../../services/OrderService';
@@ -10,13 +11,15 @@ interface OrderDetailsRouteParams {
 }
 
 export const OrderDetailsScreen = () => {
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const navigation = useNavigation<any>();
   const { order } = route.params as OrderDetailsRouteParams;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
@@ -31,9 +34,9 @@ export const OrderDetailsScreen = () => {
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 40 }} />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 20, 24) }]}>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Order</Text>
           <Text style={styles.valueText}>{order.code ? `#${order.code}` : `Order ${order.id}`}</Text>
@@ -43,18 +46,30 @@ export const OrderDetailsScreen = () => {
           <Text style={styles.valueText}>{order.createdAt ? new Date(order.createdAt).toLocaleString() : 'N/A'}</Text>
         </View>
 
+        {order.status?.toLowerCase() === 'cancelled' && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Cancellation Details</Text>
+            <Text style={styles.labelText}>Reason</Text>
+            <Text style={styles.valueText}>{order.cancellationReason || order.failedReason || 'Order cancelled at delivery location'}</Text>
+            <Text style={styles.labelText}>Cancelled by</Text>
+            <Text style={styles.valueText}>Driver</Text>
+            <Text style={styles.labelText}>Cancelled at</Text>
+            <Text style={styles.valueText}>{order.updatedAt ? new Date(order.updatedAt).toLocaleString() : 'N/A'}</Text>
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Pickup</Text>
           <Text style={styles.valueText}>{order.pickup?.address || 'N/A'}</Text>
-          {order.pickup.contactName ? <Text style={styles.subText}>{order.pickup.contactName}</Text> : null}
-          {order.pickup.contactPhone ? <Text style={styles.subText}>{order.pickup.contactPhone}</Text> : null}
+          {order.pickup?.contactName ? <Text style={styles.subText}>{order.pickup.contactName}</Text> : null}
+          {order.pickup?.contactPhone ? <Text style={styles.subText}>{order.pickup.contactPhone}</Text> : null}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Dropoff</Text>
           <Text style={styles.valueText}>{order.dropoff?.address || 'N/A'}</Text>
-          {order.dropoff.contactName ? <Text style={styles.subText}>{order.dropoff.contactName}</Text> : null}
-          {order.dropoff.contactPhone ? <Text style={styles.subText}>{order.dropoff.contactPhone}</Text> : null}
+          {order.dropoff?.contactName ? <Text style={styles.subText}>{order.dropoff.contactName}</Text> : null}
+          {order.dropoff?.contactPhone ? <Text style={styles.subText}>{order.dropoff.contactPhone}</Text> : null}
         </View>
 
         <View style={styles.card}>
@@ -68,7 +83,7 @@ export const OrderDetailsScreen = () => {
           <Text style={styles.subText}>{order.customerPhone ?? 'N/A'}</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -78,7 +93,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 12,
     paddingBottom: 16,
     paddingHorizontal: 20,
     backgroundColor: COLORS.surface,
@@ -89,21 +103,23 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.surfaceSoft,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: COLORS.textPrimary,
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: COLORS.textPrimary,
@@ -117,8 +133,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.25,

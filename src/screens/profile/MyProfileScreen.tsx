@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../constants/routes';
 import { API_BASE_URL } from '../../config/env';
@@ -26,6 +27,7 @@ import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
 
 export const MyProfileScreen = () => {
+  const insets = useSafeAreaInsets();
   const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
   const [uploading, setUploading] = useState(false);
@@ -178,12 +180,12 @@ export const MyProfileScreen = () => {
   const insuranceExpiry = driver?.insuranceExpiry || docStatuses.insuranceExpiry || docStatuses.insurancePhoto?.expiry;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
       <Loader visible={uploading} message="Uploading Profile Photo..." />
 
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
@@ -208,7 +210,10 @@ export const MyProfileScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 24) }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Driver Main Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
@@ -247,21 +252,23 @@ export const MyProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.driverName}>{driver?.name || 'Driver'}</Text>
-          <Text style={styles.driverPhone}>{driver?.phone || 'No Phone Number'}</Text>
-          <Text style={styles.driverEmail}>{driver?.email || 'No Email Provided'}</Text>
+          <View style={styles.profileHeaderInfo}>
+            <Text style={styles.driverName}>{driver?.name || 'Driver'}</Text>
+            {driver?.phone ? <Text style={styles.driverPhone}>{driver.phone}</Text> : null}
+            {driver?.email ? <Text style={styles.driverEmail}>{driver.email}</Text> : null}
 
-          <View style={styles.statusBadgesRow}>
-            <View style={[styles.badge, styles.statusBadge]}>
-              <View style={styles.activeDot} />
-              <Text style={styles.statusBadgeText}>
-                {driver?.status?.toUpperCase() || 'OFFLINE'}
-              </Text>
-            </View>
-            <View style={[styles.badge, styles.verifyBadge]}>
-              <Text style={styles.verifyBadgeText}>
-                {driver?.authorizationStatus?.toUpperCase() || 'PENDING'}
-              </Text>
+            <View style={styles.statusBadgesRow}>
+              <View style={[styles.badge, styles.statusBadge]}>
+                <View style={styles.activeDot} />
+                <Text style={styles.statusBadgeText}>
+                  {driver?.status?.toUpperCase() || 'OFFLINE'}
+                </Text>
+              </View>
+              <View style={[styles.badge, styles.verifyBadge]}>
+                <Text style={styles.verifyBadgeText}>
+                  {driver?.authorizationStatus?.toUpperCase() || 'APPROVED'}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -362,7 +369,7 @@ export const MyProfileScreen = () => {
         title={fullImageModal.title}
         onClose={() => setFullImageModal({ visible: false, uri: '', title: '' })}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -372,7 +379,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#061A3A',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 14,
     paddingHorizontal: 16,
     backgroundColor: '#0B2246',
@@ -383,30 +389,32 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   editHeaderBtn: {
     paddingHorizontal: 16,
-    height: 48,
+    height: 40,
     backgroundColor: '#0D2A54',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#0066FF',
     justifyContent: 'center',
@@ -420,28 +428,29 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    gap: 24,
+    gap: 20,
   },
   profileCard: {
     backgroundColor: '#0B2246',
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
     elevation: 8,
   },
+  avatarWrapper: {
+    position: 'relative',
+  },
   avatarContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     borderWidth: 2,
     borderColor: '#0066FF',
-    marginBottom: 16,
     overflow: 'hidden',
   },
   avatarImage: {
@@ -456,39 +465,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarInitials: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#0066FF',
+  },
+  profileHeaderInfo: {
+    flex: 1,
+    marginLeft: 16,
   },
   driverName: {
     fontSize: 22,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   driverPhone: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '400',
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   driverEmail: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   statusBadgesRow: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   badge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -502,10 +517,10 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#22C55E',
-    marginRight: 8,
+    marginRight: 6,
   },
   statusBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#22C55E',
@@ -516,7 +531,7 @@ const styles = StyleSheet.create({
     borderColor: '#0066FF',
   },
   verifyBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#0066FF',
@@ -525,8 +540,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B2246',
     borderRadius: 20,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
   },
   sectionTitle: {
     fontSize: 18,

@@ -11,11 +11,13 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../constants/routes';
 import { COLORS } from '../../constants/colors';
 
 export const EarningsScreen = () => {
+  const insets = useSafeAreaInsets();
   const { driver } = useAuth();
   const navigation = useNavigation<any>();
 
@@ -32,11 +34,11 @@ export const EarningsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
 
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
@@ -55,7 +57,10 @@ export const EarningsScreen = () => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 24) }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Main Earnings Balance Card */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>TOTAL EARNINGS BALANCE</Text>
@@ -126,7 +131,7 @@ export const EarningsScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -136,7 +141,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#061A3A',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : Math.max(StatusBar.currentHeight || 0, 24) + 8,
     paddingBottom: 14,
     paddingHorizontal: 16,
     backgroundColor: '#0B2246',
@@ -147,21 +151,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E3A8A',
   },
   backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0D2A54',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
   },
   backBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
@@ -175,8 +181,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
     shadowColor: '#0066FF',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -261,8 +265,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B2246',
     borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -293,8 +295,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B2246',
     borderRadius: 18,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
   },
   activityTitle: {
     fontSize: 22,
