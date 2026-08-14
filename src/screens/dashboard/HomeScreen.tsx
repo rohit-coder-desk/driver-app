@@ -37,6 +37,7 @@ import { OrderOfferCard } from '../../components/orders/OrderOfferCard';
 import { PaymentConfirmationModal } from '../../components/orders/PaymentConfirmationModal';
 import { CustomerReviewModal } from '../../components/orders/CustomerReviewModal';
 import { ActiveOrderCard } from '../../components/orders/ActiveOrderCard';
+import { ParcelPhotoModal } from '../../components/orders/ParcelPhotoModal';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
@@ -146,6 +147,51 @@ export const HomeScreen = () => {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [serviceArea, setServiceArea] = useState<ServiceAreaConfig>(DEFAULT_SERVICE_AREA);
   const isClampingRef = useRef<boolean>(false);
+
+  const [proofModalVisible, setProofModalVisible] = useState<boolean>(false);
+  const [proofMode, setProofMode] = useState<'pickup' | 'delivery'>('pickup');
+
+  const isPickupPhotoRequired = (order: any): boolean => {
+    if (!order) return false;
+    let dm = order.deliveryMethod || order.delivery_method;
+    let configs = dm?.configs || order?.configs;
+    if (typeof configs === 'string') {
+      try { configs = JSON.parse(configs); } catch (e) {}
+    }
+
+    if (!configs && (dm === null || dm === undefined)) {
+      return true;
+    }
+    if (!configs) return false;
+
+    const proof = configs?.proofOfPickup || configs?.proofOfPickupDelivery?.proofOfPickup;
+    if (!proof) return false;
+
+    const enabled = proof.enabled !== false;
+    const isPhotoReq = Boolean(proof.isPhotoRequired || proof.photoRequired);
+    return Boolean(enabled && isPhotoReq);
+  };
+
+  const isDeliveryPhotoRequired = (order: any): boolean => {
+    if (!order) return false;
+    let dm = order.deliveryMethod || order.delivery_method;
+    let configs = dm?.configs || order?.configs;
+    if (typeof configs === 'string') {
+      try { configs = JSON.parse(configs); } catch (e) {}
+    }
+
+    if (!configs && (dm === null || dm === undefined)) {
+      return true;
+    }
+    if (!configs) return false;
+
+    const proof = configs?.proofOfDelivery || configs?.proofOfPickupDelivery?.proofOfDelivery;
+    if (!proof) return false;
+
+    const enabled = proof.enabled !== false;
+    const isPhotoReq = Boolean(proof.isPhotoRequired || proof.photoRequired);
+    return Boolean(enabled && isPhotoReq);
+  };
 
   const [region, setRegion] = useState({
     latitude: MOHALI_COORDS.latitude,
@@ -730,8 +776,7 @@ export const HomeScreen = () => {
     }
   };
 
-  const handleConfirmPickup = async () => {
-    if (!ensureOnlineForDeliveryAction()) return;
+  const executeConfirmPickup = async () => {
     if (!activeOrder) return;
     setActionLoading(true);
     try {
@@ -755,6 +800,19 @@ export const HomeScreen = () => {
     }
   };
 
+  const handleConfirmPickup = async () => {
+    if (!ensureOnlineForDeliveryAction()) return;
+    if (!activeOrder) return;
+
+    if (isPickupPhotoRequired(activeOrder) && !activeOrder.pickupPhotoUrl) {
+      setProofMode('pickup');
+      setProofModalVisible(true);
+      return;
+    }
+
+    await executeConfirmPickup();
+  };
+
   const handleReachedDestination = async () => {
     if (!ensureOnlineForDeliveryAction()) return;
     if (!activeOrder) return;
@@ -772,7 +830,44 @@ export const HomeScreen = () => {
 
   const handleOpenPaymentModal = () => {
     if (!ensureOnlineForDeliveryAction()) return;
+    if (!activeOrder) return;
+
+    if (isDeliveryPhotoRequired(activeOrder) && !activeOrder.deliveryPhotoUrl) {
+      setProofMode('delivery');
+      setProofModalVisible(true);
+      return;
+    }
+
     setPaymentModalVisible(true);
+  };
+
+  const handleConfirmUploadProof = async (file: { uri: string; type?: string; fileName?: string }) => {
+    if (!activeOrder) return;
+    const res = await OrderService.uploadProofPhoto(activeOrder.id, file, proofMode);
+
+    let updatedPhotoOrder = activeOrder;
+    if (res?.order) {
+      updatedPhotoOrder = {
+        ...activeOrder,
+        ...res.order,
+        pickupPhotoUrl: res.order.pickupPhotoUrl || (proofMode === 'pickup' ? res.photoUrl : activeOrder.pickupPhotoUrl),
+        deliveryPhotoUrl: res.order.deliveryPhotoUrl || (proofMode === 'delivery' ? res.photoUrl : activeOrder.deliveryPhotoUrl),
+      };
+    } else {
+      updatedPhotoOrder = {
+        ...activeOrder,
+        [proofMode === 'pickup' ? 'pickupPhotoUrl' : 'deliveryPhotoUrl']: res.photoUrl,
+      };
+    }
+
+    setActiveOrder(updatedPhotoOrder);
+    setProofModalVisible(false);
+
+    if (proofMode === 'pickup') {
+      await executeConfirmPickup();
+    } else if (proofMode === 'delivery') {
+      setPaymentModalVisible(true);
+    }
   };
 
   const handleConfirmDeliveryWithPayment = async (paymentMethod: string) => {
@@ -1436,6 +1531,14 @@ export const HomeScreen = () => {
         onAccept={handleAcceptOffer}
         onReject={handleRejectOffer}
         loading={actionLoading}
+      />
+
+      {/* Parcel Proof Photo Modal (Pickup & Delivery) */}
+      <ParcelPhotoModal
+        visible={proofModalVisible}
+        mode={proofMode}
+        onClose={() => setProofModalVisible(false)}
+        onConfirmUpload={handleConfirmUploadProof}
       />
 
       {/* Payment Confirmation Modal for Order Completion */}

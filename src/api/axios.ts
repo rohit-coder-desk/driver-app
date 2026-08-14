@@ -24,10 +24,10 @@ apiClient.interceptors.request.use(
         }
       }
       if (config.data instanceof FormData) {
-        if (typeof (config.headers as any).set === 'function') {
-          (config.headers as any).set('Content-Type', 'multipart/form-data');
+        if (typeof (config.headers as any).delete === 'function') {
+          (config.headers as any).delete('Content-Type');
         } else {
-          (config.headers as any)['Content-Type'] = 'multipart/form-data';
+          delete (config.headers as any)['Content-Type'];
         }
       }
     } catch (e) {

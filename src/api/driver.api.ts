@@ -31,5 +31,8 @@ export const driverApi = {
   getServiceArea: () => {
     return apiClient.get('/api/drivers/me/service-area');
   },
+  getEarnings: () => {
+    return apiClient.get('/api/drivers/me/earnings');
+  },
 };
 

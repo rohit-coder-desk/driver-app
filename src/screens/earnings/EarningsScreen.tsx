@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,56 @@ import {
   StatusBar,
   Alert,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
+import { DriverService } from '../../services/DriverService';
 import { ROUTES } from '../../constants/routes';
-import { COLORS } from '../../constants/colors';
 
 export const EarningsScreen = () => {
   const insets = useSafeAreaInsets();
-  const { driver } = useAuth();
+  const { driver, refreshProfile } = useAuth();
   const navigation = useNavigation<any>();
 
-  const balance = driver?.balance || 0;
-  const blockedBalance = (driver as any)?.blockedBalance || 0;
-  const minimumBalance = (driver as any)?.minimumBalance || 0;
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [earningsData, setEarningsData] = useState<any>(null);
+
+  const fetchEarnings = useCallback(async () => {
+    try {
+      const data = await DriverService.getEarnings();
+      if (data) {
+        setEarningsData(data);
+      }
+      await refreshProfile();
+    } catch (error) {
+      console.warn('Error loading earnings:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [refreshProfile]);
+
+  useEffect(() => {
+    fetchEarnings();
+  }, [fetchEarnings]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchEarnings();
+  }, [fetchEarnings]);
+
+  const balance = earningsData?.balance ?? driver?.balance ?? 0;
+  const blockedBalance = earningsData?.blockedBalance ?? (driver as any)?.blockedBalance ?? 0;
+  const minimumBalance = earningsData?.minimumBalance ?? (driver as any)?.minimumBalance ?? 0;
+  const todayEarnings = earningsData?.todayEarnings ?? 0;
+  const todayOrdersCount = earningsData?.todayOrdersCount ?? 0;
+  const weekEarnings = earningsData?.weekEarnings ?? 0;
+  const weekOrdersCount = earningsData?.weekOrdersCount ?? 0;
+  const transactions = earningsData?.transactions || [];
 
   const handleRequestPayout = () => {
     Alert.alert(
@@ -31,6 +66,18 @@ export const EarningsScreen = () => {
       `Your current withdrawable balance is ₹${balance.toFixed(2)}.\nMinimum balance required: ₹${minimumBalance.toFixed(2)}.\n\nYour payout request has been queued for processing.`,
       [{ text: 'OK' }]
     );
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -60,6 +107,14 @@ export const EarningsScreen = () => {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 24) }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#0066FF"
+            colors={['#0066FF']}
+          />
+        }
       >
         {/* Main Earnings Balance Card */}
         <View style={styles.balanceCard}>
@@ -91,43 +146,14 @@ export const EarningsScreen = () => {
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryCardLabel}>TODAY'S EARNINGS</Text>
-            <Text style={styles.summaryCardValue}>₹{balance > 0 ? (balance * 0.4).toFixed(2) : '0.00'}</Text>
-            <Text style={styles.summaryCardSub}>Completed orders</Text>
+            <Text style={styles.summaryCardValue}>₹{todayEarnings.toFixed(2)}</Text>
+            <Text style={styles.summaryCardSub}>{todayOrdersCount} completed order{todayOrdersCount !== 1 ? 's' : ''}</Text>
           </View>
 
           <View style={styles.summaryCard}>
             <Text style={styles.summaryCardLabel}>THIS WEEK</Text>
-            <Text style={styles.summaryCardValue}>₹{balance > 0 ? balance.toFixed(2) : '0.00'}</Text>
-            <Text style={styles.summaryCardSub}>Total payouts</Text>
-          </View>
-        </View>
-
-        {/* Section: Recent Transaction Activity */}
-        <View style={styles.activityCard}>
-          <Text style={styles.activityTitle}>RECENT ACTIVITY</Text>
-
-          <View style={styles.transactionRow}>
-            <View style={styles.txIconBox}>
-              <Text style={styles.txIconText}>↓</Text>
-            </View>
-            <View style={styles.txDetails}>
-              <Text style={styles.txTitle}>Delivery Earnings</Text>
-              <Text style={styles.txSubtitle}>Order payout added to balance</Text>
-            </View>
-            <Text style={styles.txAmountPositive}>+₹{balance > 0 ? (balance * 0.4).toFixed(2) : '0.00'}</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.transactionRow}>
-            <View style={styles.txIconBox}>
-              <Text style={styles.txIconText}>↓</Text>
-            </View>
-            <View style={styles.txDetails}>
-              <Text style={styles.txTitle}>Trip Completed</Text>
-              <Text style={styles.txSubtitle}>Distance fare payment</Text>
-            </View>
-            <Text style={styles.txAmountPositive}>+₹{balance > 0 ? (balance * 0.6).toFixed(2) : '0.00'}</Text>
+            <Text style={styles.summaryCardValue}>₹{weekEarnings.toFixed(2)}</Text>
+            <Text style={styles.summaryCardSub}>{weekOrdersCount} total order{weekOrdersCount !== 1 ? 's' : ''}</Text>
           </View>
         </View>
       </ScrollView>
@@ -291,65 +317,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginTop: 4,
   },
-  activityCard: {
-    backgroundColor: '#0B2246',
-    borderRadius: 18,
-    padding: 20,
-  },
-  activityTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-    marginBottom: 16,
-  },
-  transactionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  txIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#052E16',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-    borderWidth: 1,
-    borderColor: '#15803D',
-  },
-  txIconText: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    color: '#22C55E',
-  },
-  txDetails: {
-    flex: 1,
-  },
-  txTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-  },
-  txSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  txAmountPositive: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    color: '#22C55E',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#1E3A8A',
-  },
 });
 
 export default EarningsScreen;
+

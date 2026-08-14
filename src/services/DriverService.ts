@@ -72,5 +72,14 @@ export const DriverService = {
       return null;
     }
   },
+  getEarnings: async () => {
+    try {
+      const response = await driverApi.getEarnings();
+      return response.data || null;
+    } catch (error: any) {
+      console.warn('Failed to fetch driver earnings:', error);
+      return null;
+    }
+  },
 };
 

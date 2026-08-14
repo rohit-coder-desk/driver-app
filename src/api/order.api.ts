@@ -25,6 +25,17 @@ export const orderApi = {
   rateCustomer: (id: number, rating: number, review?: string) => {
     return apiClient.put(`/api/orders/${id}/rate-customer`, { rating, review });
   },
+  uploadProofPhoto: (id: number, file: { uri: string; type?: string; fileName?: string }, type: 'pickup' | 'delivery') => {
+    const formData = new FormData();
+    formData.append('type', type);
+    formData.append('photo', {
+      uri: file.uri,
+      type: file.type || 'image/jpeg',
+      name: file.fileName || `proof_${type}_${Date.now()}.jpg`,
+    } as any);
+
+    return apiClient.post(`/api/orders/${id}/proof-photo`, formData);
+  },
 };
 
 

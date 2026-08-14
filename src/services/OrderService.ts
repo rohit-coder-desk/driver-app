@@ -25,6 +25,9 @@ export interface OrderData {
   estimatedDistance?: number | string;
   cancellationReason?: string;
   failedReason?: string;
+  pickupPhotoUrl?: string;
+  deliveryPhotoUrl?: string;
+  deliveryMethod?: any;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -239,6 +242,16 @@ export const OrderService = {
     } catch (error: any) {
       console.warn('Error rating customer:', error);
       throw error.response?.data?.message || 'Failed to rate customer.';
+    }
+  },
+
+  uploadProofPhoto: async (orderId: number, file: { uri: string; type?: string; fileName?: string }, type: 'pickup' | 'delivery') => {
+    try {
+      const response = await orderApi.uploadProofPhoto(orderId, file, type);
+      return response.data;
+    } catch (error: any) {
+      console.warn(`Error uploading ${type} proof photo:`, error);
+      throw error.response?.data?.message || `Failed to upload ${type} proof photo.`;
     }
   },
 };
