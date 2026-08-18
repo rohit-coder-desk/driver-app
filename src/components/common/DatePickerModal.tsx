@@ -14,6 +14,7 @@ interface DatePickerModalProps {
   onSelect: (dateStr: string) => void;
   onClose: () => void;
   minDate?: Date;
+  title?: string;
 }
 
 const MONTH_NAMES = [
@@ -29,8 +30,9 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
   onSelect,
   onClose,
   minDate,
+  title,
 }) => {
-  // Set minimum date to today (defaults to today)
+  // Set minimum date (defaults to today)
   const effectiveMinDate = useMemo(() => {
     if (minDate) return minDate;
     const today = new Date();
@@ -38,15 +40,14 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
     return today;
   }, [minDate]);
 
-  // Parse initial value or default to tomorrow/minDate
+  // Parse initial value or default to effectiveMinDate
   const initialDateObj = useMemo(() => {
     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const [y, m, d] = value.split('-').map(Number);
-      return new Date(y, m - 1, d);
+      const parsed = new Date(y, m - 1, d);
+      if (parsed >= effectiveMinDate) return parsed;
     }
-    const tomorrow = new Date(effectiveMinDate);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow;
+    return new Date(effectiveMinDate);
   }, [value, effectiveMinDate]);
 
   const [currentYear, setCurrentYear] = useState<number>(initialDateObj.getFullYear());
@@ -123,7 +124,7 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
         <View style={styles.cardContainer}>
           {/* Header Bar */}
           <View style={styles.headerBar}>
-            <Text style={styles.headerTitle}>Select Licence Expiry Date</Text>
+            <Text style={styles.headerTitle}>{title || 'Select Expiry Date'}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>

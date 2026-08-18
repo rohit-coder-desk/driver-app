@@ -34,5 +34,11 @@ export const driverApi = {
   getEarnings: () => {
     return apiClient.get('/api/drivers/me/earnings');
   },
+  requestPayout: (amount: number, note?: string) => {
+    return apiClient.post('/api/driver/payout/request', { amount, note });
+  },
+  cancelPayoutRequest: (id: number) => {
+    return apiClient.patch(`/api/drivers/me/payout-request/${id}/cancel`);
+  },
 };
 

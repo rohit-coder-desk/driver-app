@@ -4,12 +4,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   TextInput,
   SafeAreaView,
   Platform,
   KeyboardAvoidingView,
   StatusBar,
+  KeyboardTypeOptions,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +22,7 @@ import { Loader } from '../../components/common/Loader';
 import { CustomDriverModal } from '../../components/common/CustomDriverModal';
 import { DatePickerModal } from '../../components/common/DatePickerModal';
 import { ROUTES } from '../../constants/routes';
+import { ALL_COUNTRY_CODES, CountryCode } from '../../constants/countryCodes';
 
 interface InputFieldProps {
   label: string;
@@ -26,27 +30,59 @@ interface InputFieldProps {
   onChangeText: (text: string) => void;
   placeholder: string;
   editable?: boolean;
+  required?: boolean;
+  maxLength?: number;
+  keyboardType?: KeyboardTypeOptions;
+  error?: string | null;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 }
 
-const InputField = memo(({ label, value, onChangeText, placeholder, editable = true }: InputFieldProps) => (
+const InputField = memo(({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  editable = true,
+  required = false,
+  maxLength,
+  keyboardType = 'default',
+  error,
+  autoCapitalize,
+}: InputFieldProps) => (
   <View style={styles.inputContainer}>
-    <Text style={styles.inputLabel}>{label}</Text>
+    <Text style={styles.inputLabel}>
+      {label} {required && <Text style={styles.requiredStar}>*</Text>}
+    </Text>
     <TextInput
-      style={[styles.textInput, !editable && styles.disabledInput]}
+      style={[
+        styles.textInput,
+        !editable && styles.disabledInput,
+        !!error && styles.errorInput,
+      ]}
       placeholder={placeholder}
       placeholderTextColor="#94a3b8"
       value={value}
       onChangeText={onChangeText}
       editable={editable}
+      maxLength={maxLength}
+      keyboardType={keyboardType}
+      autoCapitalize={autoCapitalize}
     />
+    {!!error && <Text style={styles.errorText}>{error}</Text>}
   </View>
 ));
 
-const MultilineInputField = memo(({ label, value, onChangeText, placeholder }: InputFieldProps) => (
+const MultilineInputField = memo(({ label, value, onChangeText, placeholder, error, required = false }: InputFieldProps) => (
   <View style={styles.inputContainer}>
-    <Text style={styles.inputLabel}>{label}</Text>
+    <Text style={styles.inputLabel}>
+      {label} {required && <Text style={styles.requiredStar}>*</Text>}
+    </Text>
     <TextInput
-      style={[styles.textInput, styles.multilineInput]}
+      style={[
+        styles.textInput,
+        styles.multilineInput,
+        !!error && styles.errorInput,
+      ]}
       placeholder={placeholder}
       placeholderTextColor="#94a3b8"
       value={value}
@@ -55,17 +91,35 @@ const MultilineInputField = memo(({ label, value, onChangeText, placeholder }: I
       numberOfLines={3}
       textAlignVertical="top"
     />
+    {!!error && <Text style={styles.errorText}>{error}</Text>}
   </View>
 ));
 
-const DatePickerInputField = memo(({ label, value, onPress, placeholder }: { label: string; value: string; onPress: () => void; placeholder: string }) => (
+const DatePickerInputField = memo(({
+  label,
+  value,
+  onPress,
+  placeholder,
+  required = false,
+  error,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+  placeholder: string;
+  required?: boolean;
+  error?: string | null;
+}) => (
   <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.inputContainer}>
-    <Text style={styles.inputLabel}>{label}</Text>
-    <View style={styles.dateInputWrapper}>
+    <Text style={styles.inputLabel}>
+      {label} {required && <Text style={styles.requiredStar}>*</Text>}
+    </Text>
+    <View style={[styles.dateInputWrapper, !!error && styles.errorInput]}>
       <Text style={[styles.dateInputText, !value && styles.dateInputPlaceholder]}>
         {value || placeholder}
       </Text>
     </View>
+    {!!error && <Text style={styles.errorText}>{error}</Text>}
   </TouchableOpacity>
 ));
 
@@ -95,21 +149,49 @@ export const ProfileScreen = () => {
   const [rcExpiry, setRcExpiry] = useState('');
   const [insuranceExpiry, setInsuranceExpiry] = useState('');
 
+  // Validation Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   // Date Picker active target
   const [activeDatePickerField, setActiveDatePickerField] = useState<'drivingLicenceExpiry' | 'rcExpiry' | 'insuranceExpiry' | null>(null);
 
   const [loading, setLoading] = useState(false);
 
+  // Helper to safely format raw dates to YYYY-MM-DD
+  const formatDateString = (val?: string | null) => {
+    if (!val) return '';
+    const str = String(val).trim();
+    if (!str) return '';
+    return str.split('T')[0];
+  };
+
+  // Country Code State
+  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(ALL_COUNTRY_CODES[0]);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+
   // Sync profile details on mount/update
   useEffect(() => {
     if (driver) {
       setName(driver.name || '');
-      setPhone(driver.phone || '');
+
+      let rawP = driver.phone || '';
+      let matchedCountry = ALL_COUNTRY_CODES[0];
+      for (const cc of ALL_COUNTRY_CODES) {
+        if (rawP.startsWith(cc.code)) {
+          matchedCountry = cc;
+          rawP = rawP.slice(cc.code.length);
+          break;
+        }
+      }
+      rawP = rawP.replace(/\D/g, '').slice(0, 10);
+      setSelectedCountry(matchedCountry);
+      setPhone(rawP);
+
       setEmail(driver.email || '');
       setCity(driver.city || '');
       setAddress(driver.address || '');
       setDrivingLicenceNumber(driver.drivingLicenceNumber || '');
-      setDrivingLicenceExpiry(driver.drivingLicenceExpiry || '');
+      setDrivingLicenceExpiry(formatDateString(driver.drivingLicenceExpiry));
       setVehicleBrand(driver.vehicleBrand || '');
       setVehicleModel(driver.vehicleModel || '');
       setVehicleColor(driver.vehicleColor || '');
@@ -128,8 +210,11 @@ export const ProfileScreen = () => {
         }
       }
 
-      setRcExpiry(driver.rcExpiry || docObj.rcExpiry || docObj.rcPhoto?.expiry || '');
-      setInsuranceExpiry(driver.insuranceExpiry || docObj.insuranceExpiry || docObj.insurancePhoto?.expiry || '');
+      const rawRc = driver.rcExpiry || docObj.rcExpiry || docObj.rcPhoto?.expiry;
+      const rawInsurance = driver.insuranceExpiry || docObj.insuranceExpiry || docObj.insurancePhoto?.expiry;
+
+      setRcExpiry(formatDateString(rawRc));
+      setInsuranceExpiry(formatDateString(rawInsurance));
     }
   }, [driver]);
 
@@ -189,8 +274,28 @@ export const ProfileScreen = () => {
     if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       const [y, m, d] = dateStr.split('-').map(Number);
       const selDate = new Date(y, m - 1, d);
-      if (selDate < today) {
-        showModal('error', 'Invalid Date', 'Expiry date cannot be in the past.');
+
+      if (activeDatePickerField === 'drivingLicenceExpiry') {
+        const minLicenceDate = new Date();
+        minLicenceDate.setMonth(minLicenceDate.getMonth() + 1);
+        minLicenceDate.setHours(0, 0, 0, 0);
+
+        if (selDate < minLicenceDate) {
+          setErrors((prev) => ({ ...prev, drivingLicenceExpiry: 'Driving Licence Expiry must be at least 1 month from today.' }));
+          setDrivingLicenceExpiry(dateStr);
+          setActiveDatePickerField(null);
+          return;
+        } else {
+          setErrors((prev) => ({ ...prev, drivingLicenceExpiry: '' }));
+        }
+      } else if (selDate < today) {
+        if (activeDatePickerField === 'rcExpiry') {
+          setErrors((prev) => ({ ...prev, rcExpiry: 'RC Expiry Date must be today or a future date.' }));
+        } else if (activeDatePickerField === 'insuranceExpiry') {
+          setErrors((prev) => ({ ...prev, insuranceExpiry: 'Insurance Expiry Date must be today or a future date.' }));
+        }
+        if (activeDatePickerField === 'rcExpiry') setRcExpiry(dateStr);
+        if (activeDatePickerField === 'insuranceExpiry') setInsuranceExpiry(dateStr);
         setActiveDatePickerField(null);
         return;
       }
@@ -198,13 +303,16 @@ export const ProfileScreen = () => {
 
     if (activeDatePickerField === 'drivingLicenceExpiry') {
       setDrivingLicenceExpiry(dateStr);
+      setErrors((prev) => ({ ...prev, drivingLicenceExpiry: '' }));
     } else if (activeDatePickerField === 'rcExpiry') {
       setRcExpiry(dateStr);
+      setErrors((prev) => ({ ...prev, rcExpiry: '' }));
     } else if (activeDatePickerField === 'insuranceExpiry') {
       setInsuranceExpiry(dateStr);
+      setErrors((prev) => ({ ...prev, insuranceExpiry: '' }));
     }
     setActiveDatePickerField(null);
-  }, [activeDatePickerField, showModal]);
+  }, [activeDatePickerField]);
 
   const activeDatePickerValue = useMemo(() => {
     if (activeDatePickerField === 'drivingLicenceExpiry') return drivingLicenceExpiry;
@@ -220,6 +328,18 @@ export const ProfileScreen = () => {
     return 'Select Expiry Date';
   }, [activeDatePickerField]);
 
+  const activeDatePickerMinDate = useMemo(() => {
+    if (activeDatePickerField === 'drivingLicenceExpiry') {
+      const minLicenceDate = new Date();
+      minLicenceDate.setMonth(minLicenceDate.getMonth() + 1);
+      minLicenceDate.setHours(0, 0, 0, 0);
+      return minLicenceDate;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, [activeDatePickerField]);
+
   const handleSaveProfile = useCallback(async () => {
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
@@ -232,38 +352,105 @@ export const ProfileScreen = () => {
     const trimmedColor = vehicleColor.trim();
     const trimmedPlate = vehiclePlate.trim();
 
+    const errs: Record<string, string> = {};
+
+    // 1. Basic Information Validation (Matching Admin Dashboard DriverEditor.jsx)
     if (!trimmedName) {
-      showModal('error', 'Validation Error', 'Please enter your full name.');
-      return;
+      errs.name = 'Name is required.';
     }
+
     if (!trimmedPhone) {
-      showModal('error', 'Validation Error', 'Please enter your phone number.');
-      return;
-    }
-    if (!trimmedEmail) {
-      showModal('error', 'Validation Error', 'Please enter your email address.');
-      return;
-    }
-
-    // Validate Expiry Dates (cannot be in the past)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const validateExpiry = (dateStr: string, fieldName: string) => {
-      if (!dateStr) return true;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return true;
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const expDate = new Date(y, m - 1, d);
-      if (expDate < today) {
-        showModal('error', 'Validation Error', `${fieldName} cannot be in the past.`);
-        return false;
+      errs.phone = 'Phone number is required.';
+    } else {
+      const phoneDigits = trimmedPhone.replace(/\D/g, '');
+      if (phoneDigits.length !== 10) {
+        errs.phone = 'Phone number must be exactly 10 digits.';
       }
-      return true;
-    };
+    }
 
-    if (!validateExpiry(drivingLicenceExpiry, 'Driving Licence Expiry')) return;
-    if (!validateExpiry(rcExpiry, 'RC Expiry')) return;
-    if (!validateExpiry(insuranceExpiry, 'Vehicle Insurance Expiry')) return;
+    if (!trimmedEmail) {
+      errs.email = 'Email is required.';
+    } else {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        errs.email = 'Please enter a valid email address.';
+      }
+    }
+
+    // 2. Driving Licence Validation
+    if (!trimmedLicence) {
+      errs.drivingLicenceNumber = 'Driving Licence Number is required.';
+    }
+
+    if (!drivingLicenceExpiry || !drivingLicenceExpiry.trim()) {
+      errs.drivingLicenceExpiry = 'Driving Licence Expiry is required.';
+    } else {
+      const dlExpDate = new Date(drivingLicenceExpiry);
+      const minLicenceDate = new Date();
+      minLicenceDate.setMonth(minLicenceDate.getMonth() + 1);
+      minLicenceDate.setHours(0, 0, 0, 0);
+      if (isNaN(dlExpDate.getTime()) || dlExpDate < minLicenceDate) {
+        errs.drivingLicenceExpiry = 'Driving Licence Expiry must be at least 1 month from today.';
+      }
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // 3. RC Expiry Validation
+    if (!rcExpiry || !rcExpiry.trim()) {
+      errs.rcExpiry = 'RC Expiry is required.';
+    } else {
+      const rcExpDate = new Date(rcExpiry);
+      if (isNaN(rcExpDate.getTime()) || rcExpDate < todayStart) {
+        errs.rcExpiry = 'RC Expiry Date must be today or a future date.';
+      }
+    }
+
+    // 4. Vehicle Insurance Expiry Validation
+    if (!insuranceExpiry || !insuranceExpiry.trim()) {
+      errs.insuranceExpiry = 'Insurance Expiry is required.';
+    } else {
+      const insExpDate = new Date(insuranceExpiry);
+      if (isNaN(insExpDate.getTime()) || insExpDate < todayStart) {
+        errs.insuranceExpiry = 'Insurance Expiry Date must be today or a future date.';
+      }
+    }
+
+    // 5. City Validation (Required & >= 3 chars)
+    if (!trimmedCity) {
+      errs.city = 'City is required.';
+    } else if (trimmedCity.length < 3) {
+      errs.city = 'City name must be at least 3 characters.';
+    }
+
+    // 6. Address Validation (Required & >= 10 chars)
+    if (!trimmedAddress) {
+      errs.address = 'Address is required.';
+    } else if (trimmedAddress.length < 10) {
+      errs.address = 'Address must be at least 10 characters.';
+    }
+
+    // 7. Vehicle Details Validation
+    if (!trimmedBrand) {
+      errs.vehicleBrand = 'Vehicle Brand is required.';
+    }
+    if (!trimmedModel) {
+      errs.vehicleModel = 'Vehicle Model is required.';
+    }
+    if (!trimmedColor) {
+      errs.vehicleColor = 'Vehicle Color is required.';
+    }
+    if (!trimmedPlate) {
+      errs.vehiclePlate = 'Vehicle Plate Number is required.';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    setErrors({});
 
     const docStatuses = driver?.documentStatuses as Record<string, any> | undefined;
 
@@ -367,21 +554,61 @@ export const ProfileScreen = () => {
             label="Full Name"
             placeholder="Enter your full name"
             value={name}
-            onChangeText={setName}
+            onChangeText={(txt) => {
+              setName(txt);
+              setErrors((prev) => ({ ...prev, name: '' }));
+            }}
+            required
+            error={errors.name}
           />
 
-          <InputField
-            label="Phone Number"
-            placeholder="Enter phone number"
-            value={phone}
-            onChangeText={setPhone}
-          />
+          {/* Phone Number with Country Code */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>
+              Phone Number <Text style={styles.requiredStar}>*</Text>
+            </Text>
+            <View style={styles.phoneInputRow}>
+              <TouchableOpacity
+                style={styles.countryPickerBtn}
+                onPress={() => setCountryModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+                <Text style={styles.countryCodeText}>{selectedCountry.code}</Text>
+                <Text style={styles.dropdownArrow}>▼</Text>
+              </TouchableOpacity>
+
+              <View style={[styles.phoneInputWrapper, !!errors.phone && styles.errorInput]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 10-digit phone number"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={(txt) => {
+                    const cleaned = txt.replace(/\D/g, '').slice(0, 10);
+                    setPhone(cleaned);
+                    setErrors((prev) => ({ ...prev, phone: '' }));
+                  }}
+                  maxLength={10}
+                />
+              </View>
+            </View>
+            {!!errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          </View>
 
           <InputField
             label="Email Address"
             placeholder="Enter email address"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(txt) => {
+              setEmail(txt);
+              setErrors((prev) => ({ ...prev, email: '' }));
+            }}
+            required
+            keyboardType="email-address"
+            autoCapitalize="none"
+            error={errors.email}
           />
 
           {/* Driver Information */}
@@ -391,14 +618,24 @@ export const ProfileScreen = () => {
             label="Driving Licence Number"
             placeholder="e.g. DL-123456789"
             value={drivingLicenceNumber}
-            onChangeText={setDrivingLicenceNumber}
+            onChangeText={(txt) => {
+              setDrivingLicenceNumber(txt);
+              setErrors((prev) => ({ ...prev, drivingLicenceNumber: '' }));
+            }}
+            required
+            error={errors.drivingLicenceNumber}
           />
 
           <DatePickerInputField
             label="Driving Licence Expiry"
             placeholder="Select Licence Expiry Date (YYYY-MM-DD)"
             value={drivingLicenceExpiry}
-            onPress={() => setActiveDatePickerField('drivingLicenceExpiry')}
+            onPress={() => {
+              setErrors((prev) => ({ ...prev, drivingLicenceExpiry: '' }));
+              setActiveDatePickerField('drivingLicenceExpiry');
+            }}
+            required
+            error={errors.drivingLicenceExpiry}
           />
 
           {/* Address Information */}
@@ -408,14 +645,24 @@ export const ProfileScreen = () => {
             label="City"
             placeholder="Enter your city"
             value={city}
-            onChangeText={setCity}
+            onChangeText={(txt) => {
+              setCity(txt);
+              setErrors((prev) => ({ ...prev, city: '' }));
+            }}
+            required
+            error={errors.city}
           />
 
           <MultilineInputField
             label="Address"
             placeholder="Enter full address"
             value={address}
-            onChangeText={setAddress}
+            onChangeText={(txt) => {
+              setAddress(txt);
+              setErrors((prev) => ({ ...prev, address: '' }));
+            }}
+            required
+            error={errors.address}
           />
 
           {/* Vehicle Information */}
@@ -425,42 +672,72 @@ export const ProfileScreen = () => {
             label="Vehicle Brand"
             placeholder="e.g. Toyota"
             value={vehicleBrand}
-            onChangeText={setVehicleBrand}
+            onChangeText={(txt) => {
+              setVehicleBrand(txt);
+              setErrors((prev) => ({ ...prev, vehicleBrand: '' }));
+            }}
+            required
+            error={errors.vehicleBrand}
           />
 
           <InputField
             label="Vehicle Model"
             placeholder="e.g. Camry"
             value={vehicleModel}
-            onChangeText={setVehicleModel}
+            onChangeText={(txt) => {
+              setVehicleModel(txt);
+              setErrors((prev) => ({ ...prev, vehicleModel: '' }));
+            }}
+            required
+            error={errors.vehicleModel}
           />
 
           <InputField
             label="Vehicle Color"
             placeholder="e.g. White"
             value={vehicleColor}
-            onChangeText={setVehicleColor}
+            onChangeText={(txt) => {
+              setVehicleColor(txt);
+              setErrors((prev) => ({ ...prev, vehicleColor: '' }));
+            }}
+            required
+            error={errors.vehicleColor}
           />
 
           <InputField
             label="Vehicle Plate Number"
             placeholder="e.g. ABC-1234"
             value={vehiclePlate}
-            onChangeText={setVehiclePlate}
+            onChangeText={(txt) => {
+              setVehiclePlate(txt);
+              setErrors((prev) => ({ ...prev, vehiclePlate: '' }));
+            }}
+            required
+            error={errors.vehiclePlate}
           />
 
           <DatePickerInputField
             label="RC Expiry"
             placeholder="Select RC Expiry Date (YYYY-MM-DD)"
             value={rcExpiry}
-            onPress={() => setActiveDatePickerField('rcExpiry')}
+            onPress={() => {
+              setErrors((prev) => ({ ...prev, rcExpiry: '' }));
+              setActiveDatePickerField('rcExpiry');
+            }}
+            required
+            error={errors.rcExpiry}
           />
 
           <DatePickerInputField
             label="Vehicle Insurance Expiry"
             placeholder="Select Insurance Expiry Date (YYYY-MM-DD)"
             value={insuranceExpiry}
-            onPress={() => setActiveDatePickerField('insuranceExpiry')}
+            onPress={() => {
+              setErrors((prev) => ({ ...prev, insuranceExpiry: '' }));
+              setActiveDatePickerField('insuranceExpiry');
+            }}
+            required
+            error={errors.insuranceExpiry}
           />
 
           {/* Submit Button */}
@@ -486,9 +763,52 @@ export const ProfileScreen = () => {
       <DatePickerModal
         visible={!!activeDatePickerField}
         value={activeDatePickerValue}
+        title={activeDatePickerTitle}
+        minDate={activeDatePickerMinDate}
         onSelect={handleDateSelect}
         onClose={() => setActiveDatePickerField(null)}
       />
+
+      {/* Country Code Selection Modal */}
+      <Modal
+        visible={countryModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCountryModalVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={styles.countryModalCard}>
+              <Text style={styles.countryModalTitle}>Select Country Code</Text>
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={true}>
+                {ALL_COUNTRY_CODES.map((item, index) => (
+                  <TouchableOpacity
+                    key={`${item.code}-${item.country}-${index}`}
+                    style={[
+                      styles.countryItem,
+                      selectedCountry.country === item.country && selectedCountry.code === item.code && styles.selectedCountryItem,
+                    ]}
+                    onPress={() => {
+                      setSelectedCountry(item);
+                      setCountryModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.countryFlag}>{item.flag}</Text>
+                    <Text style={styles.countryName}>{item.name}</Text>
+                    {selectedCountry.country === item.country && selectedCountry.code === item.code && (
+                      <Text style={styles.checkIcon}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -555,6 +875,10 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginBottom: 8,
   },
+  requiredStar: {
+    color: '#EF4444',
+    fontWeight: '700',
+  },
   textInput: {
     backgroundColor: '#0D2A54',
     borderRadius: 14,
@@ -565,6 +889,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     color: '#FFFFFF',
+  },
+  errorInput: {
+    borderColor: '#EF4444',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Inter-Medium',
   },
   disabledInput: {
     opacity: 0.6,
@@ -614,6 +947,107 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  countryPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D2A54',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    borderRadius: 14,
+    height: 54,
+    paddingHorizontal: 14,
+    marginRight: 8,
+  },
+  flagText: {
+    fontSize: 20,
+    marginRight: 6,
+  },
+  countryCodeText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    marginRight: 6,
+  },
+  dropdownArrow: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  phoneInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D2A54',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    borderRadius: 14,
+    height: 54,
+    paddingHorizontal: 16,
+  },
+  input: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
+    fontFamily: 'Inter-Regular',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 26, 58, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  countryModalCard: {
+    width: '100%',
+    backgroundColor: '#0B2246',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 12,
+  },
+  countryModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  countryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  selectedCountryItem: {
+    backgroundColor: '#0D2A54',
+  },
+  countryFlag: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  countryName: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  checkIcon: {
+    color: '#0066FF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

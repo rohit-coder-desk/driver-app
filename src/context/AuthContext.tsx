@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setDriver(updatedProfile);
       return updatedProfile;
     } catch (e) {
-      console.error(' [AUTH CONTEXT] Failed to sync/refresh driver profile:', e);
+      console.warn(' [AUTH CONTEXT] Failed to sync/refresh driver profile:', e);
       throw e;
     }
   }, []);
@@ -94,23 +94,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (username: string, password?: string) => {
     try {
       const data = await AuthService.login({
-        name: username,
-        phone: username,
-        username,
+        name: username.trim(),
+        email: username.trim(),
+        phone: username.trim(),
+        username: username.trim(),
         password,
       });
 
+      const phoneToVerify = data.driver?.phone || (!username.includes('@') ? username.trim() : '');
+
       // If driver phone isn't verified yet, API route might return isRegistrationVerified = false
       if (data.isRegistrationVerified === false || data.driver?.isRegistrationVerified === false) {
-        setUnverifiedPhone(data.driver?.phone || username);
+        setUnverifiedPhone(phoneToVerify);
         // Automatically request sending new OTP
-        try {
-          const res = await AuthService.sendOtp(data.driver?.phone || username);
-          if (res.otp) {
-            setOtpCodeForTesting(res.otp);
+        if (phoneToVerify) {
+          try {
+            const res = await AuthService.sendOtp(phoneToVerify);
+            if (res.otp) {
+              setOtpCodeForTesting(res.otp);
+            }
+          } catch (err) {
+            console.warn('Auto send OTP failed:', err);
           }
-        } catch (err) {
-          console.warn('Auto send OTP failed:', err);
         }
         throw new Error('VERIFY_OTP_REQUIRED');
       }
@@ -124,15 +129,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setOtpCodeForTesting(null);
     } catch (error: any) {
       if (error?.isRegistrationVerified === false || error?.message === 'VERIFY_OTP_REQUIRED') {
-        const phoneToVerify = error?.phone || username;
+        const phoneToVerify = error?.driver?.phone || error?.phone || (!username.includes('@') ? username : '');
         setUnverifiedPhone(phoneToVerify);
-        try {
-          const res = await AuthService.sendOtp(phoneToVerify);
-          if (res.otp) {
-            setOtpCodeForTesting(res.otp);
+        if (phoneToVerify) {
+          try {
+            const res = await AuthService.sendOtp(phoneToVerify);
+            if (res.otp) {
+              setOtpCodeForTesting(res.otp);
+            }
+          } catch (err) {
+            console.warn('Auto send OTP failed:', err);
           }
-        } catch (err) {
-          console.warn('Auto send OTP failed:', err);
         }
         throw new Error('VERIFY_OTP_REQUIRED');
       }

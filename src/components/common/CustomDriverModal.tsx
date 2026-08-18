@@ -393,8 +393,6 @@ export const CustomDriverModal: React.FC<CustomDriverModalProps> = ({
   const handleBackdropPress = () => {
     if (onSecondaryAction) {
       onSecondaryAction();
-    } else if (onPrimaryAction) {
-      onPrimaryAction();
     }
   };
 

@@ -32,7 +32,7 @@ export const LoginScreen = () => {
   const handleLogin = async () => {
     setError(null);
     if (!username.trim() || !password.trim()) {
-      setError('Please enter both username/phone and password.');
+      setError('Please enter both email/phone and password.');
       return;
     }
 
@@ -43,7 +43,7 @@ export const LoginScreen = () => {
       if (err.message === 'VERIFY_OTP_REQUIRED' || unverifiedPhone) {
         navigation.navigate(ROUTES.OTP_VERIFICATION);
       } else {
-        setError(err.message || err || 'Invalid username or password.');
+        setError(err.message || err || 'Invalid email/phone or password.');
       }
     } finally {
       setLoading(false);
@@ -85,12 +85,12 @@ export const LoginScreen = () => {
 
         {/* Input Form */}
         <View style={styles.formContainer}>
-          {/* Username / Phone Field */}
-          <Text style={styles.label}>Name or Phone Number</Text>
+          {/* Email / Phone Field */}
+          <Text style={styles.label}>Email or Phone Number</Text>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
-              placeholder="Enter name or phone number"
+              placeholder="Enter email or phone number"
               placeholderTextColor="#64748B"
               value={username}
               onChangeText={(txt) => {

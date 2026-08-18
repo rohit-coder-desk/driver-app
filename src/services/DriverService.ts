@@ -7,7 +7,8 @@ export const DriverService = {
       const response = await driverApi.getProfile();
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.message || 'Failed to fetch driver profile.';
+      const msg = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to fetch driver profile.';
+      throw typeof msg === 'string' ? msg : JSON.stringify(msg);
     }
   },
 
@@ -74,11 +75,29 @@ export const DriverService = {
   },
   getEarnings: async () => {
     try {
+      console.log('⚡ [DRIVER SERVICE] Fetching /api/drivers/me/earnings...');
       const response = await driverApi.getEarnings();
+      console.log('⚡ [DRIVER SERVICE] Response status:', response.status, 'data:', JSON.stringify(response.data));
       return response.data || null;
     } catch (error: any) {
-      console.warn('Failed to fetch driver earnings:', error);
+      console.warn('❌ [DRIVER SERVICE] Failed to fetch driver earnings:', error?.response?.data || error?.message || error);
       return null;
+    }
+  },
+  requestPayout: async (amount: number, note?: string) => {
+    try {
+      const response = await driverApi.requestPayout(amount, note);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message || 'Failed to submit payout request.';
+    }
+  },
+  cancelPayoutRequest: async (id: number) => {
+    try {
+      const response = await driverApi.cancelPayoutRequest(id);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message || 'Failed to cancel payout request.';
     }
   },
 };
