@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getHeaderPaddingTop } from '../../utils/layout';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
@@ -319,11 +320,11 @@ export const DocumentsScreen = () => {
       'Choose how you want to upload your photo:',
       [
         {
-          text: '📷 Take Photo with Camera',
+          text: 'Take Photo with Camera',
           onPress: () => openDocumentPicker(key, true),
         },
         {
-          text: '🖼️ Choose from Gallery',
+          text: 'Choose from Gallery',
           onPress: () => openDocumentPicker(key, false),
         },
         {
@@ -370,7 +371,7 @@ export const DocumentsScreen = () => {
   return (
     <View style={styles.container}>
       <Loader visible={loading} message="Uploading documents..." />
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+      <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
@@ -379,14 +380,11 @@ export const DocumentsScreen = () => {
       </View>
       <ScrollView ref={scrollViewRef} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 36) }]}>
         <Text style={styles.title}>Upload and manage your documents</Text>
-        {/* <Text style={styles.description}>
-          Keep your driver licence, insurance, and registration documents up to date. This section shows the status of each uploaded document.
-        </Text> */}
 
         {/* Status Banner */}
         {authStatus === 'rejected' && (
           <View style={styles.rejectedBanner}>
-            <Text style={styles.rejectedBannerTitle}> Document Verification Rejected</Text>
+            <Text style={styles.rejectedBannerTitle}>Document Verification Rejected</Text>
             <Text style={styles.rejectedBannerText}>
               {rejectedDocNames.length > 0
                 ? `Rejected document(s): ${rejectedDocNames.join(', ')}.\n${rejectionReason ? `Reason: ${rejectionReason}` : 'Please re-upload the highlighted document(s) below.'}`
@@ -397,14 +395,14 @@ export const DocumentsScreen = () => {
         {authStatus === 'pending' && (
           hasUploadedDocs ? (
             <View style={styles.pendingBanner}>
-              <Text style={styles.pendingBannerTitle}>⏳ Verification Under Review</Text>
+              <Text style={styles.pendingBannerTitle}>Verification Under Review</Text>
               <Text style={styles.pendingBannerText}>
                 Your documents have been submitted and are currently being reviewed by admin.
               </Text>
             </View>
           ) : (
             <View style={[styles.pendingBanner, { borderColor: '#F59E0B' }]}>
-              <Text style={[styles.pendingBannerTitle, { color: '#F59E0B' }]}>⚠️ Complete Profile Verification</Text>
+              <Text style={[styles.pendingBannerTitle, { color: '#F59E0B' }]}>Complete Profile Verification</Text>
               <Text style={styles.pendingBannerText}>
                 Please upload all mandatory documents (Profile Photo, Aadhaar, Licence, RC, Insurance) below for admin review.
               </Text>
@@ -413,7 +411,7 @@ export const DocumentsScreen = () => {
         )}
         {authStatus === 'approved' && (
           <View style={styles.approvedBanner}>
-            <Text style={styles.approvedBannerTitle}>✓ Verification Approved</Text>
+            <Text style={styles.approvedBannerTitle}>Verification Approved</Text>
             <Text style={styles.approvedBannerText}>
               All your documents have been verified and approved by admin.
             </Text>
@@ -512,10 +510,10 @@ export const DocumentsScreen = () => {
                       <Text style={styles.statusApprovedText}>Approved</Text>
                     )}
                     {cardState === 'pending' && (
-                      <Text style={styles.statusPendingText}>⏳ Under Review</Text>
+                      <Text style={styles.statusPendingText}>Under Review</Text>
                     )}
                     {cardState === 'rejected' && (
-                      <Text style={styles.statusRejectedText}>✕ Rejected</Text>
+                      <Text style={styles.statusRejectedText}>Rejected</Text>
                     )}
                     {cardState === 'selected' && (
                       <Text style={styles.statusSelectedText}>Selected</Text>

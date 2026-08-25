@@ -32,6 +32,7 @@ import { DriverService } from '../../services/DriverService';
 import { LocationService } from '../../services/LocationService';
 import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
 import { RouteService, LatLng } from '../../services/RouteService';
+import { voiceService } from '../../services/VoiceService';
 import { OrderRequestModal } from '../../components/orders/OrderRequestModal';
 import { OrderOfferCard } from '../../components/orders/OrderOfferCard';
 import { PaymentConfirmationModal } from '../../components/orders/PaymentConfirmationModal';
@@ -41,7 +42,24 @@ import { ParcelPhotoModal } from '../../components/orders/ParcelPhotoModal';
 import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../constants/routes';
 import { Loader } from '../../components/common/Loader';
-import { HomeIcon, ProfileIcon, EditIcon, OrdersIcon, DocumentsIcon, SupportIcon, EarningsIcon, LogoutIcon, LockShieldIcon, OfflineSignalIcon } from '../../components/common/Icons';
+import {
+  HomeIcon,
+  ProfileIcon,
+  EditIcon,
+  OrdersIcon,
+  DocumentsIcon,
+  SupportIcon,
+  EarningsIcon,
+  LogoutIcon,
+  LockShieldIcon,
+  OfflineSignalIcon,
+  MenuIcon,
+  GpsTargetIcon,
+  WarningIcon,
+  TruckIcon,
+  CarIcon,
+  LocationPinIcon,
+} from '../../components/common/Icons';
 import { CustomDriverModal, DriverModalType } from '../../components/common/CustomDriverModal';
 import { API_BASE_URL } from '../../config/env';
 
@@ -71,6 +89,7 @@ export const HomeScreen = () => {
   const [activeOrder, setActiveOrder] = useState<OrderData | null>(null);
   const [incomingOffers, setIncomingOffers] = useState<OrderOfferData[]>([]);
   const [incomingOffer, setIncomingOffer] = useState<OrderOfferData | null>(null);
+  const [workingTypeConfig, setWorkingTypeConfig] = useState<any>(null);
   const [offerModalVisible, setOfferModalVisible] = useState<boolean>(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState<boolean>(false);
   const [reviewModalVisible, setReviewModalVisible] = useState<boolean>(false);
@@ -79,6 +98,51 @@ export const HomeScreen = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
   const lastPromptedExpiryRef = useRef<string | null>(null);
+  const announcedOfferIdsRef = useRef<Set<number>>(new Set());
+
+  // Fetch Working Type configuration for active driver
+  useEffect(() => {
+    const fetchWorkingTypeConfig = async () => {
+      try {
+        const cfg = await DriverService.getWorkingTypeConfig();
+        if (cfg) {
+          setWorkingTypeConfig(cfg);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch working type config:', err);
+      }
+    };
+    if (driver?.id) {
+      fetchWorkingTypeConfig();
+    }
+  }, [driver?.id]);
+
+  // Distance helper in meters for pickup validation
+  const calculateDistanceMeters = (
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number
+  ): number => {
+    const R = 6371e3;
+    const phi1 = (lat1 * Math.PI) / 180;
+    const phi2 = (lat2 * Math.PI) / 180;
+    const dPhi = ((lat2 - lat1) * Math.PI) / 180;
+    const dLambda = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Initialize VoiceService for TTS offer alerts
+  useEffect(() => {
+    voiceService.initialize();
+    return () => {
+      voiceService.stop();
+    };
+  }, []);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -506,7 +570,7 @@ export const HomeScreen = () => {
       return;
     }
 
-    const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+    const isPickedUp = activeOrder ? ['picked_up', 'in_transit', 'heading_to_dropoff', 'arrived_at_dropoff', 'near_destination'].includes(activeOrder.status) : false;
     const targetLat = activeOrder ? (isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat) : null;
     const targetLng = activeOrder ? (isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng) : null;
 
@@ -585,7 +649,7 @@ export const HomeScreen = () => {
   // Fit camera bounds when active order status or target changes
   useEffect(() => {
     if (mapRef.current && activeOrder && location) {
-      const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+      const isPickedUp = activeOrder ? ['picked_up', 'in_transit', 'heading_to_dropoff', 'arrived_at_dropoff', 'near_destination'].includes(activeOrder.status) : false;
       const targetLat = isPickedUp ? activeOrder.dropoff?.lat : activeOrder.pickup?.lat;
       const targetLng = isPickedUp ? activeOrder.dropoff?.lng : activeOrder.pickup?.lng;
 
@@ -621,80 +685,11 @@ export const HomeScreen = () => {
     }
   }, [activeOrder?.status, activeOrder?.id]);
 
-  // Offer polling when driver is online and has no active order
-  useEffect(() => {
-    let offerInterval: any;
-
-    if (isOnline) {
-      const fetchOffers = async () => {
-        // If driver has an active delivery, suppress incoming offers
-        if (activeOrderRef.current || activeOrder) {
-          setIncomingOffers([]);
-          setIncomingOffer(null);
-          setOfferModalVisible(false);
-          return;
-        }
-
-        try {
-          const offers = await OrderService.getDriverOffers();
-          if (offers && Array.isArray(offers)) {
-            setIncomingOffers((prev) => {
-              const offerMap = new Map<number, OrderOfferData>();
-
-              // Preserve existing valid pending offers
-              prev.forEach((o) => {
-                if (o && o.id) {
-                  offerMap.set(o.id, o);
-                }
-              });
-
-              // Merge incoming offers from API
-              offers.forEach((o) => {
-                if (o && o.id && o.status === 'pending') {
-                  offerMap.set(o.id, o);
-                }
-              });
-
-              // Sort by offer timestamp (newest -> oldest), falling back to offer.id (Constraint 10)
-              const getOfferTime = (item: OrderOfferData): number => {
-                const raw = (item as any).offeredAt || (item as any).createdAt || item.order?.createdAt;
-                if (raw) {
-                  const t = new Date(raw).getTime();
-                  if (!isNaN(t)) return t;
-                }
-                return item.id || 0;
-              };
-
-              const nextOffers = Array.from(offerMap.values()).sort(
-                (a, b) => getOfferTime(b) - getOfferTime(a)
-              );
-
-              if (nextOffers.length !== prev.length) {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              }
-              return nextOffers;
-            });
-          }
-        } catch (err) {
-          console.warn('Error fetching driver offers:', err);
-        }
-      };
-
-      fetchOffers();
-      offerInterval = setInterval(fetchOffers, 4000);
-    } else {
-      setIncomingOffers([]);
-      setIncomingOffer(null);
-      setOfferModalVisible(false);
-    }
-
-    return () => {
-      if (offerInterval) clearInterval(offerInterval);
-    };
-  }, [isOnline, activeOrder]);
+  // Offer polling is managed globally by GlobalOfferOverlay at the AppStack level
 
   const handleAcceptOffer = async (offer: OrderOfferData) => {
     setActionLoading(true);
+    voiceService.stop();
     console.log('[DEBUG-NAV] handleAcceptOffer triggered for offer:', offer);
     try {
       await OrderService.acceptOffer(offer.id);
@@ -728,6 +723,7 @@ export const HomeScreen = () => {
 
   const handleRejectOffer = async (offer: OrderOfferData) => {
     setActionLoading(true);
+    voiceService.stop();
     try {
       await OrderService.rejectOffer(offer.id);
     } catch (err: any) {
@@ -803,6 +799,34 @@ export const HomeScreen = () => {
   const handleConfirmPickup = async () => {
     if (!ensureOnlineForDeliveryAction()) return;
     if (!activeOrder) return;
+
+    const radius = workingTypeConfig?.orderPickupRadius;
+    const driverLat = location?.latitude;
+    const driverLng = location?.longitude;
+    const pickupLat = activeOrder.pickup?.lat;
+    const pickupLng = activeOrder.pickup?.lng;
+
+    const isDriverLocValid = driverLat !== undefined && driverLat !== null && !isNaN(Number(driverLat));
+    const isPickupLocValid = pickupLat !== undefined && pickupLat !== null && !isNaN(Number(pickupLat)) && pickupLng !== undefined && pickupLng !== null && !isNaN(Number(pickupLng)) && !(Number(pickupLat) === 0 && Number(pickupLng) === 0);
+    const isRadiusValid = radius !== undefined && radius !== null && !isNaN(Number(radius)) && Number(radius) >= 100;
+
+    let isWithinRadius = false;
+    if (isDriverLocValid && isPickupLocValid && isRadiusValid) {
+      const dist = calculateDistanceMeters(Number(driverLat), Number(driverLng), Number(pickupLat), Number(pickupLng));
+      if (dist <= Number(radius)) {
+        isWithinRadius = true;
+      }
+    }
+
+    if (!isWithinRadius) {
+      showDriverModal(
+        'warning',
+        'Pickup Location Required',
+        'Please reach the pickup location first.',
+        'OK'
+      );
+      return;
+    }
 
     if (isPickupPhotoRequired(activeOrder) && !activeOrder.pickupPhotoUrl) {
       setProofMode('pickup');
@@ -889,7 +913,7 @@ export const HomeScreen = () => {
   const handleReviewSubmit = async (rating: number, reviewText: string) => {
     if (!completedOrderForReview) {
       setReviewModalVisible(false);
-      showDriverModal('delivered', 'Delivery Completed! 🎉', 'You are back online and waiting for new offers.', 'Awesome');
+      showDriverModal('delivered', 'Delivery Completed', 'You are back online and waiting for new offers.', 'Awesome');
       return;
     }
     setReviewLoading(true);
@@ -901,14 +925,14 @@ export const HomeScreen = () => {
       setReviewLoading(false);
       setReviewModalVisible(false);
       setCompletedOrderForReview(null);
-      showDriverModal('delivered', 'Delivery Completed! 🎉', 'Thank you for rating the customer. You are back online.', 'Done');
+      showDriverModal('delivered', 'Delivery Completed', 'Thank you for rating the customer. You are back online.', 'Done');
     }
   };
 
   const handleReviewSkip = () => {
     setReviewModalVisible(false);
     setCompletedOrderForReview(null);
-    showDriverModal('delivered', 'Delivery Completed! 🎉', 'You are back online and waiting for new offers.', 'Awesome');
+    showDriverModal('delivered', 'Delivery Completed', 'You are back online and waiting for new offers.', 'Awesome');
   };
 
   // Fetch Dynamic Service Area Boundary from Backend
@@ -996,13 +1020,18 @@ export const HomeScreen = () => {
 
       if (lastPromptedExpiryRef.current !== promptKey) {
         lastPromptedExpiryRef.current = promptKey;
+        const isMissing = isProfileIncomplete || (expiryInfo?.missingDocuments && expiryInfo.missingDocuments.length > 0) || (expiryInfo?.hasExpiredDocs ?? false);
         showDriverModal(
           'warning',
           'Account Restriction',
-          expiryInfo.onlineBlockReason || driver.onlineBlockReason || 'Your document has expired. Please upload a renewed document.',
-          'Upload Document',
-          () => navigation.navigate(ROUTES.DOCUMENTS, { targetDocKey }),
-          'Close'
+          expiryInfo.onlineBlockReason || driver.onlineBlockReason || (
+            isMissing
+              ? 'Your document has expired. Please upload a renewed document.'
+              : 'Your documents have been submitted and are currently being reviewed by administrator.'
+          ),
+          isMissing ? 'Upload Document' : 'OK',
+          isMissing ? () => navigation.navigate(ROUTES.DOCUMENTS, { targetDocKey }) : undefined,
+          isMissing ? 'Close' : undefined
         );
       }
     }
@@ -1073,15 +1102,19 @@ export const HomeScreen = () => {
               ? 'Complete Your Profile'
               : 'Verification Under Review';
 
-          const blockMessage = updatedProfile?.onlineBlockReason || expiryInfo?.onlineBlockReason || 'Please upload required documents for admin review before going online.';
+          const blockMessage = updatedProfile?.onlineBlockReason || expiryInfo?.onlineBlockReason || (
+            isMissing
+              ? 'Please upload required documents for admin review before going online.'
+              : 'Your documents have been submitted and are currently being reviewed by administrator.'
+          );
 
           showDriverModal(
             'warning',
             modalTitle,
             blockMessage,
-            'Upload Document',
-            () => navigation.navigate(ROUTES.DOCUMENTS),
-            'Close'
+            isMissing ? 'Upload Document' : 'OK',
+            isMissing ? () => navigation.navigate(ROUTES.DOCUMENTS) : undefined,
+            isMissing ? 'Close' : undefined
           );
           setIsOnline(false);
           return;
@@ -1226,12 +1259,13 @@ export const HomeScreen = () => {
                 coordinate={location}
                 title={driver?.name || 'Driver'}
                 description="Online - Active"
-                zIndex={99}
+                anchor={{ x: 0.5, y: 0.5 }}
+                zIndex={999}
               >
                 <View style={styles.driverMarkerContainer}>
                   <View style={styles.driverMarkerPulse} />
                   <View style={styles.driverMarkerBadge}>
-                    <Text style={styles.driverMarkerEmoji}>🚘</Text>
+                    <View style={styles.driverMarkerCoreDot} />
                   </View>
                 </View>
               </Marker>
@@ -1244,7 +1278,7 @@ export const HomeScreen = () => {
               const dLat = Number(activeOrder.dropoff?.lat || 0);
               const dLng = Number(activeOrder.dropoff?.lng || 0);
 
-              const isPickedUp = activeOrder.status === 'picked_up' || activeOrder.status === 'near_destination';
+              const isPickedUp = activeOrder ? ['picked_up', 'in_transit', 'heading_to_dropoff', 'arrived_at_dropoff', 'near_destination'].includes(activeOrder.status) : false;
               const targetLat = Number(isPickedUp ? dLat : pLat);
               const targetLng = Number(isPickedUp ? dLng : pLng);
               const startLoc = location || (driver?.latitude && driver?.longitude ? { latitude: Number(driver.latitude), longitude: Number(driver.longitude) } : MOHALI_COORDS);
@@ -1265,6 +1299,22 @@ export const HomeScreen = () => {
                       ]
                       : [];
 
+              if (__DEV__) {
+                console.log('[ROUTE-RENDER-DEBUG]', {
+                  orderId: activeOrder.id,
+                  orderStatus: activeOrder.status,
+                  isPickedUp,
+                  targetKey,
+                  pickup: { lat: pLat, lng: pLng },
+                  dropoff: { lat: dLat, lng: dLng },
+                  startLoc,
+                  target: { lat: targetLat, lng: targetLng },
+                  routeCoordsLen: routeCoordinates.length,
+                  cachedLen: cachedRoute?.length || 0,
+                  finalPolylineLen: polylinePoints.length,
+                });
+              }
+
               return (
                 <>
                   {/* Pickup Marker */}
@@ -1276,7 +1326,7 @@ export const HomeScreen = () => {
                       zIndex={999}
                     >
                       <View style={styles.pickupMarkerBadge}>
-                        <Text style={styles.markerBadgeEmoji}>🏪</Text>
+                        <LocationPinIcon color="#FFFFFF" size={18} />
                       </View>
                     </Marker>
                   )}
@@ -1290,7 +1340,7 @@ export const HomeScreen = () => {
                       zIndex={999}
                     >
                       <View style={styles.deliveryMarkerBadge}>
-                        <Text style={styles.markerBadgeEmoji}>🏁</Text>
+                        <LocationPinIcon color="#FFFFFF" size={18} />
                       </View>
                     </Marker>
                   )}
@@ -1349,7 +1399,7 @@ export const HomeScreen = () => {
           onPress={openDrawer}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
-          <Text style={styles.hamburgerIconText}>☰</Text>
+          <MenuIcon size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
         {/* Driver Name & Time-of-Day Greeting */}
@@ -1407,7 +1457,7 @@ export const HomeScreen = () => {
           activeOpacity={0.8}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.gpsTargetIcon}>🎯</Text>
+          <GpsTargetIcon size={22} color="#2563EB" />
         </TouchableOpacity>
       )}
 
@@ -1415,6 +1465,8 @@ export const HomeScreen = () => {
       {activeOrder ? (
         <ActiveOrderCard
           order={activeOrder}
+          driverLocation={location}
+          orderPickupRadius={workingTypeConfig?.orderPickupRadius}
           onReachedPickup={handleReachedPickup}
           onConfirmPickup={handleConfirmPickup}
           onReachedDestination={handleReachedDestination}
@@ -1429,7 +1481,10 @@ export const HomeScreen = () => {
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
-          <Text style={styles.rejectedTitle}>❌ Document Expired</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <WarningIcon size={18} color="#EF4444" />
+            <Text style={styles.rejectedTitle}>Document Expired</Text>
+          </View>
           <Text style={styles.rejectedSubtitle}>
             {driver?.onlineBlockReason || driver?.docExpiryInfo?.onlineBlockReason || 'Your document has expired. Please upload a valid updated document.'}
           </Text>
@@ -1440,7 +1495,10 @@ export const HomeScreen = () => {
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
-          <Text style={styles.completeProfileTitle}>⚠️ Complete Your Profile</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <WarningIcon size={18} color="#F59E0B" />
+            <Text style={styles.completeProfileTitle}>Complete Your Profile</Text>
+          </View>
           <Text style={styles.completeProfileSubtitle}>
             Please tap here to upload required vehicle documents (License, RC, Insurance, Photo) for admin review.
           </Text>
@@ -1456,7 +1514,10 @@ export const HomeScreen = () => {
           onPress={() => navigation.navigate(ROUTES.DOCUMENTS)}
           activeOpacity={0.9}
         >
-          <Text style={styles.rejectedTitle}>⚠️ Documents Rejected</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <WarningIcon size={18} color="#EF4444" />
+            <Text style={styles.rejectedTitle}>Documents Rejected</Text>
+          </View>
           <Text style={styles.rejectedSubtitle}>
             {(() => {
               const docStatuses = driver?.documentStatuses as Record<string, any> | undefined;
@@ -1626,11 +1687,14 @@ export const HomeScreen = () => {
                 showsVerticalScrollIndicator={false}
               >
                 <TouchableOpacity
-                  style={[styles.drawerItem, styles.activeDrawerItem]}
+                  style={styles.drawerItem}
                   onPress={() => setDrawerOpen(false)}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.drawerItemText, styles.activeDrawerItemText]}>Home</Text>
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <HomeIcon size={24} color="#CBD5E1" />
+                  </View>
+                  <Text style={styles.drawerItemText}>Home</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
 
@@ -1642,6 +1706,9 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <ProfileIcon size={24} color="#CBD5E1" />
+                  </View>
                   <Text style={styles.drawerItemText}>My Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1654,6 +1721,9 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <EditIcon size={24} color="#CBD5E1" />
+                  </View>
                   <Text style={styles.drawerItemText}>Edit Profile</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1666,6 +1736,9 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <OrdersIcon size={24} color="#CBD5E1" />
+                  </View>
                   <Text style={styles.drawerItemText}>My Orders</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1678,6 +1751,9 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <DocumentsIcon size={24} color="#CBD5E1" />
+                  </View>
                   <Text style={styles.drawerItemText}>Documents</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1690,6 +1766,9 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <SupportIcon size={24} color="#CBD5E1" />
+                  </View>
                   <Text style={styles.drawerItemText}>Help & Support</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -1702,6 +1781,9 @@ export const HomeScreen = () => {
                   }}
                   activeOpacity={0.75}
                 >
+                  <View style={styles.drawerItemIconBoxContainer}>
+                    <EarningsIcon size={24} color="#CBD5E1" />
+                  </View>
                   <Text style={styles.drawerItemText}>Earnings</Text>
                   <Text style={styles.drawerItemChevron}>›</Text>
                 </TouchableOpacity>
@@ -2263,6 +2345,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F2B5B',
     borderRadius: 14,
   },
+  drawerItemIconBoxContainer: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   drawerItemIconBox: {
     width: 44,
     height: 44,
@@ -2335,35 +2424,38 @@ const styles = StyleSheet.create({
   driverMarkerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
   },
   driverMarkerPulse: {
     position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(34, 197, 94, 0.22)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(34, 197, 94, 0.5)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(66, 133, 244, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(66, 133, 244, 0.40)',
   },
   driverMarkerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#1A73E8',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: '#1A73E8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.35,
     shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: '#22c55e',
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
-  driverMarkerEmoji: {
-    fontSize: 16,
+  driverMarkerCoreDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
   },
   pickupMarkerBadge: {
     width: 38,

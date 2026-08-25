@@ -16,10 +16,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { OrderData, OrderService } from '../../services/OrderService';
 import { COLORS } from '../../constants/colors';
 import { CustomDriverModal } from '../common/CustomDriverModal';
+import { ChatBubbleIcon, PhoneIcon, LocationPinIcon, TruckIcon } from '../common/Icons';
 import apiClient from '../../api/axios';
 
 interface ActiveOrderCardProps {
   order: OrderData;
+  driverLocation?: { latitude: number; longitude: number } | null;
+  orderPickupRadius?: number | null;
   onReachedPickup?: () => void;
   onConfirmPickup: () => void;
   onReachedDestination?: () => void;
@@ -38,6 +41,8 @@ interface ChatMessage {
 
 export const ActiveOrderCard = ({
   order,
+  driverLocation,
+  orderPickupRadius,
   onReachedPickup,
   onConfirmPickup,
   onReachedDestination,
@@ -47,6 +52,50 @@ export const ActiveOrderCard = ({
   loading = false,
 }: ActiveOrderCardProps) => {
   const insets = useSafeAreaInsets();
+
+  const isDriverLocValid =
+    driverLocation?.latitude !== undefined &&
+    driverLocation?.latitude !== null &&
+    !isNaN(Number(driverLocation.latitude)) &&
+    driverLocation?.longitude !== undefined &&
+    driverLocation?.longitude !== null &&
+    !isNaN(Number(driverLocation.longitude));
+
+  const pickupLat = order.pickup?.lat;
+  const pickupLng = order.pickup?.lng;
+
+  const isPickupLocValid =
+    pickupLat !== undefined &&
+    pickupLat !== null &&
+    !isNaN(Number(pickupLat)) &&
+    pickupLng !== undefined &&
+    pickupLng !== null &&
+    !isNaN(Number(pickupLng)) &&
+    !(Number(pickupLat) === 0 && Number(pickupLng) === 0);
+
+  const isRadiusValid =
+    orderPickupRadius !== undefined &&
+    orderPickupRadius !== null &&
+    !isNaN(Number(orderPickupRadius)) &&
+    Number(orderPickupRadius) >= 100;
+
+  let isWithinPickupRadius = false;
+  if (isDriverLocValid && isPickupLocValid && isRadiusValid) {
+    const R = 6371e3;
+    const phi1 = (driverLocation!.latitude * Math.PI) / 180;
+    const phi2 = (Number(pickupLat) * Math.PI) / 180;
+    const dPhi = ((Number(pickupLat) - driverLocation!.latitude) * Math.PI) / 180;
+    const dLambda = ((Number(pickupLng) - driverLocation!.longitude) * Math.PI) / 180;
+    const a =
+      Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distMeters = R * c;
+
+    if (distMeters <= Number(orderPickupRadius)) {
+      isWithinPickupRadius = true;
+    }
+  }
   const [chatVisible, setChatVisible] = useState(false);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -92,10 +141,10 @@ export const ActiveOrderCard = ({
       const data = await OrderService.getFailureReasons();
       const filtered = Array.isArray(data)
         ? data.filter((item: any) => {
-            if (item.isActive === false) return false;
-            const t = (item.type || '').toLowerCase().trim();
-            return t === 'delivery_failed' || t === 'delivery failed';
-          })
+          if (item.isActive === false) return false;
+          const t = (item.type || '').toLowerCase().trim();
+          return t === 'delivery_failed' || t === 'delivery failed';
+        })
         : [];
       setAdminReasons(filtered);
     } catch (err) {
@@ -268,18 +317,24 @@ export const ActiveOrderCard = ({
               style={styles.chatBtn}
               onPress={() => setChatVisible(true)}
               activeOpacity={0.8}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Text style={styles.actionBtnIcon}>💬</Text>
-              <Text style={styles.actionBtnLabel}>Chat</Text>
+              <View style={styles.actionBtnIconWrap}>
+                <ChatBubbleIcon size={22} color="#60A5FA" />
+              </View>
+              <Text style={styles.actionBtnLabelChat}>Chat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.callBtn}
               onPress={handleCallCustomer}
               activeOpacity={0.8}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Text style={styles.actionBtnIcon}>📞</Text>
-              <Text style={styles.actionBtnLabel}>Call</Text>
+              <View style={styles.actionBtnIconWrap}>
+                <PhoneIcon size={22} color="#34D399" />
+              </View>
+              <Text style={styles.actionBtnLabelCall}>Call</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -290,7 +345,7 @@ export const ActiveOrderCard = ({
           <View style={styles.timelineRow}>
             <View style={styles.nodeColumn}>
               <View style={[styles.timelineNode, !isPickedUp && styles.activeNode]}>
-                <Text style={styles.nodeIcon}>🏪</Text>
+                <LocationPinIcon size={14} color="#2563EB" />
               </View>
               <View style={styles.timelineLine} />
             </View>
@@ -306,7 +361,7 @@ export const ActiveOrderCard = ({
           <View style={styles.timelineRow}>
             <View style={styles.nodeColumn}>
               <View style={[styles.timelineNode, isPickedUp && styles.activeNode]}>
-                <Text style={styles.nodeIcon}>📍</Text>
+                <LocationPinIcon size={14} color="#EF4444" />
               </View>
             </View>
             <View style={styles.addressColumn}>
@@ -333,9 +388,9 @@ export const ActiveOrderCard = ({
         </TouchableOpacity>
       ) : isAtPickup ? (
         <TouchableOpacity
-          style={styles.actionBtnPickup}
+          style={[styles.actionBtnPickup, (!isWithinPickupRadius || loading) && styles.actionBtnDisabled]}
           onPress={onConfirmPickup}
-          disabled={loading}
+          disabled={loading || !isWithinPickupRadius}
           activeOpacity={0.85}
         >
           <Text style={styles.actionBtnText}>
@@ -730,39 +785,63 @@ const styles = StyleSheet.create({
   },
   communicationButtons: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
   },
   chatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0D2A54',
-    paddingHorizontal: 14,
-    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minHeight: 46,
+    minWidth: 84,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 130, 246, 0.45)',
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0D2A54',
-    paddingHorizontal: 14,
-    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minHeight: 46,
+    minWidth: 84,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  actionBtnIcon: {
-    fontSize: 14,
-    marginRight: 6,
+  actionBtnIconWrap: {
+    marginRight: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  actionBtnLabel: {
+  actionBtnLabelChat: {
     fontSize: 14,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    color: '#60A5FA',
+    letterSpacing: 0.2,
+  },
+  actionBtnLabelCall: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+    color: '#34D399',
+    letterSpacing: 0.2,
   },
   detailsCard: {
     backgroundColor: '#0D2A54',
@@ -860,6 +939,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 6,
+  },
+  actionBtnDisabled: {
+    backgroundColor: '#475569',
+    opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   actionBtnDelivery: {
     height: 54,

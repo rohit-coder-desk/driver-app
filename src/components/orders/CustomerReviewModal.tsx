@@ -111,7 +111,7 @@ export const CustomerReviewModal: React.FC<CustomerReviewModalProps> = ({
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.textInput}
-            placeholder="Write feedback for customer (optional)..."
+            placeholder="Write feedback for customer ..."
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={3}

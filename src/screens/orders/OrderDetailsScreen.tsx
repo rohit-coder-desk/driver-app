@@ -5,6 +5,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { OrderData } from '../../services/OrderService';
 import { ROUTES } from '../../constants/routes';
+import { getHeaderPaddingTop } from '../../utils/layout';
 
 interface OrderDetailsRouteParams {
   order: OrderData;
@@ -19,7 +20,7 @@ export const OrderDetailsScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+      <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {

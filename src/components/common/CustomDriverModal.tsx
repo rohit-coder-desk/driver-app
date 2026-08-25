@@ -12,6 +12,15 @@ import {
   Platform,
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
+import {
+  CheckIcon,
+  CloseIcon,
+  WarningIcon,
+  TruckIcon,
+  LocationPinIcon,
+  NavigationArrowIcon,
+  OrdersIcon,
+} from './Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -48,216 +57,7 @@ export interface CustomDriverModalProps {
   children?: React.ReactNode;
 }
 
-// Crisp, professional vector primitives with balanced strokes & clean proportions
-const TruckIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 2 }}>
-      {/* Cargo Body */}
-      <View
-        style={{
-          width: size * 0.46,
-          height: size * 0.36,
-          backgroundColor: color,
-          borderRadius: 3,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ width: size * 0.24, height: 2, backgroundColor: '#FFFFFF', borderRadius: 1 }} />
-      </View>
-      {/* Driver Cabin */}
-      <View
-        style={{
-          width: size * 0.24,
-          height: size * 0.26,
-          backgroundColor: color,
-          borderTopRightRadius: 4,
-          borderBottomRightRadius: 2,
-          marginLeft: 2,
-        }}
-      />
-    </View>
-    {/* Wheels */}
-    <View style={{ flexDirection: 'row', width: size * 0.68, justifyContent: 'space-between' }}>
-      <View
-        style={{
-          width: size * 0.15,
-          height: size * 0.15,
-          borderRadius: (size * 0.15) / 2,
-          backgroundColor: color,
-          borderWidth: 2,
-          borderColor: '#FFFFFF',
-        }}
-      />
-      <View
-        style={{
-          width: size * 0.15,
-          height: size * 0.15,
-          borderRadius: (size * 0.15) / 2,
-          backgroundColor: color,
-          borderWidth: 2,
-          borderColor: '#FFFFFF',
-        }}
-      />
-    </View>
-  </View>
-);
 
-const CheckCircleIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View
-    style={{
-      width: size,
-      height: size,
-      borderRadius: size / 2,
-      backgroundColor: color,
-      justifyContent: 'center',
-      alignItems: 'center',
-    }}
-  >
-    <View
-      style={{
-        width: size * 0.26,
-        height: size * 0.46,
-        borderColor: '#FFFFFF',
-        borderBottomWidth: 3,
-        borderRightWidth: 3,
-        borderRadius: 1,
-        transform: [{ rotate: '45deg' }],
-        marginTop: -size * 0.06,
-      }}
-    />
-  </View>
-);
-
-const CloseCircleIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View
-    style={{
-      width: size,
-      height: size,
-      borderRadius: size / 2,
-      backgroundColor: color,
-      justifyContent: 'center',
-      alignItems: 'center',
-    }}
-  >
-    <View
-      style={{
-        width: size * 0.44,
-        height: 3,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 1.5,
-        transform: [{ rotate: '45deg' }],
-        position: 'absolute',
-      }}
-    />
-    <View
-      style={{
-        width: size * 0.44,
-        height: 3,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 1.5,
-        transform: [{ rotate: '-45deg' }],
-        position: 'absolute',
-      }}
-    />
-  </View>
-);
-
-const LocationPinIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-    <View
-      style={{
-        width: size * 0.52,
-        height: size * 0.52,
-        borderRadius: (size * 0.52) / 2,
-        backgroundColor: color,
-        borderBottomRightRadius: 0,
-        transform: [{ rotate: '-45deg' }],
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: -size * 0.08,
-      }}
-    >
-      <View
-        style={{
-          width: size * 0.2,
-          height: size * 0.2,
-          borderRadius: (size * 0.2) / 2,
-          backgroundColor: '#FFFFFF',
-        }}
-      />
-    </View>
-  </View>
-);
-
-const NavigationArrowIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-    <View
-      style={{
-        width: 0,
-        height: 0,
-        borderLeftWidth: size * 0.26,
-        borderRightWidth: size * 0.26,
-        borderBottomWidth: size * 0.6,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderBottomColor: color,
-        transform: [{ rotate: '30deg' }],
-        marginTop: -size * 0.04,
-      }}
-    />
-  </View>
-);
-
-const PackageCheckIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-    <View
-      style={{
-        width: size * 0.6,
-        height: size * 0.5,
-        borderRadius: 5,
-        borderWidth: 2,
-        borderColor: color,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <View
-        style={{
-          width: size * 0.18,
-          height: size * 0.3,
-          borderColor: color,
-          borderBottomWidth: 2,
-          borderRightWidth: 2,
-          borderRadius: 1,
-          transform: [{ rotate: '45deg' }],
-          marginTop: -2,
-        }}
-      />
-    </View>
-  </View>
-);
-
-const WarningIcon: React.FC<{ color: string; size: number }> = ({ color, size }) => (
-  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-    <View
-      style={{
-        width: 0,
-        height: 0,
-        borderLeftWidth: size * 0.34,
-        borderRightWidth: size * 0.34,
-        borderBottomWidth: size * 0.6,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderBottomColor: color,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <Text style={{ color: '#FFFFFF', fontSize: size * 0.32, fontWeight: '900', marginTop: size * 0.16 }}>!</Text>
-    </View>
-  </View>
-);
 
 export const CustomDriverModal: React.FC<CustomDriverModalProps> = ({
   visible,
@@ -313,77 +113,77 @@ export const CustomDriverModal: React.FC<CustomDriverModalProps> = ({
     switch (type) {
       case 'new_order':
         return {
-          badgeBg: '#EFF6FF',
-          badgeBorder: '#BFDBFE',
-          iconColor: '#2563EB',
-          primaryBtnBg: '#2563EB',
-          renderIcon: (s: number) => <TruckIcon color="#2563EB" size={s} />,
+          badgeBg: 'rgba(37, 99, 235, 0.15)',
+          badgeBorder: 'rgba(37, 99, 235, 0.4)',
+          iconColor: '#60A5FA',
+          primaryBtnBg: '#0066FF',
+          renderIcon: (s: number) => <TruckIcon color="#60A5FA" size={s} />,
         };
       case 'accept':
       case 'order_accepted':
       case 'delivered':
         return {
-          badgeBg: '#ECFDF5',
-          badgeBorder: '#A7F3D0',
-          iconColor: '#059669',
-          primaryBtnBg: '#059669',
-          renderIcon: (s: number) => <CheckCircleIcon color="#059669" size={s} />,
+          badgeBg: 'rgba(16, 185, 129, 0.15)',
+          badgeBorder: 'rgba(16, 185, 129, 0.4)',
+          iconColor: '#10B981',
+          primaryBtnBg: '#10B981',
+          renderIcon: (s: number) => <CheckIcon color="#34D399" size={s} />,
         };
       case 'reject':
       case 'cancel':
       case 'error':
         return {
-          badgeBg: '#FEF2F2',
-          badgeBorder: '#FECACA',
-          iconColor: '#DC2626',
-          primaryBtnBg: '#DC2626',
-          renderIcon: (s: number) => <CloseCircleIcon color="#DC2626" size={s} />,
+          badgeBg: 'rgba(239, 68, 68, 0.15)',
+          badgeBorder: 'rgba(239, 68, 68, 0.4)',
+          iconColor: '#EF4444',
+          primaryBtnBg: '#EF4444',
+          renderIcon: (s: number) => <CloseIcon color="#F87171" size={s} />,
         };
       case 'warning':
         return {
-          badgeBg: '#FFFBEB',
-          badgeBorder: '#FDE68A',
-          iconColor: '#D97706',
-          primaryBtnBg: '#D97706',
-          renderIcon: (s: number) => <WarningIcon color="#D97706" size={s} />,
+          badgeBg: 'rgba(245, 158, 11, 0.15)',
+          badgeBorder: 'rgba(245, 158, 11, 0.4)',
+          iconColor: '#F59E0B',
+          primaryBtnBg: '#F59E0B',
+          renderIcon: (s: number) => <WarningIcon color="#FBBF24" size={s} />,
         };
       case 'location_required':
       case 'navigate_pickup':
       case 'arrived_pickup':
         return {
-          badgeBg: '#EFF6FF',
-          badgeBorder: '#BFDBFE',
-          iconColor: '#2563EB',
-          primaryBtnBg: '#2563EB',
-          renderIcon: (s: number) => <LocationPinIcon color="#2563EB" size={s} />,
+          badgeBg: 'rgba(0, 102, 255, 0.15)',
+          badgeBorder: 'rgba(0, 102, 255, 0.4)',
+          iconColor: '#0066FF',
+          primaryBtnBg: '#0066FF',
+          renderIcon: (s: number) => <LocationPinIcon color="#60A5FA" size={s} />,
         };
       case 'confirm_pickup':
       case 'picked_up':
       case 'confirm_delivery':
         return {
-          badgeBg: '#FFFBEB',
-          badgeBorder: '#FDE68A',
-          iconColor: '#D97706',
-          primaryBtnBg: '#2563EB',
-          renderIcon: (s: number) => <PackageCheckIcon color="#D97706" size={s} />,
+          badgeBg: 'rgba(0, 102, 255, 0.15)',
+          badgeBorder: 'rgba(0, 102, 255, 0.4)',
+          iconColor: '#0066FF',
+          primaryBtnBg: '#0066FF',
+          renderIcon: (s: number) => <OrdersIcon color="#60A5FA" size={s} />,
         };
       case 'start_delivery':
       case 'near_destination':
         return {
-          badgeBg: '#EFF6FF',
-          badgeBorder: '#BFDBFE',
-          iconColor: '#2563EB',
-          primaryBtnBg: '#2563EB',
-          renderIcon: (s: number) => <NavigationArrowIcon color="#2563EB" size={s} />,
+          badgeBg: 'rgba(0, 102, 255, 0.15)',
+          badgeBorder: 'rgba(0, 102, 255, 0.4)',
+          iconColor: '#0066FF',
+          primaryBtnBg: '#0066FF',
+          renderIcon: (s: number) => <NavigationArrowIcon color="#60A5FA" size={s} />,
         };
       case 'info':
       default:
         return {
-          badgeBg: '#EFF6FF',
-          badgeBorder: '#BFDBFE',
-          iconColor: '#2563EB',
-          primaryBtnBg: '#2563EB',
-          renderIcon: (s: number) => <CheckCircleIcon color="#2563EB" size={s} />,
+          badgeBg: 'rgba(0, 102, 255, 0.15)',
+          badgeBorder: 'rgba(0, 102, 255, 0.4)',
+          iconColor: '#0066FF',
+          primaryBtnBg: '#0066FF',
+          renderIcon: (s: number) => <LocationPinIcon color="#60A5FA" size={s} />,
         };
     }
   };
@@ -426,7 +226,7 @@ export const CustomDriverModal: React.FC<CustomDriverModalProps> = ({
                   },
                 ]}
               >
-                {config.renderIcon(32)}
+                {config.renderIcon(30)}
               </View>
 
               {/* Optional Badge Tag */}
@@ -437,7 +237,9 @@ export const CustomDriverModal: React.FC<CustomDriverModalProps> = ({
               ) : null}
 
               {/* Title & Message */}
-              <Text style={styles.titleText}>{title}</Text>
+              <Text style={styles.titleText}>
+                {title ? title.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}🎉✉️📞💬📷🎯🔍☰✓✕]/gu, '').trim() : title}
+              </Text>
               {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
               {/* Custom Children Content */}

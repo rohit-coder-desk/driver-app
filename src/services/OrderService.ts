@@ -43,6 +43,7 @@ export interface WorkingTypeVisibilityConfig {
   showRouteTab?: boolean;
   showBalanceTab?: boolean;
   showTransactionsTab?: boolean;
+  orderPickupRadius?: number | null;
 }
 
 export interface OrderOfferData {

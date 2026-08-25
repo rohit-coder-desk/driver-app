@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   darkOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(3, 10, 22, 0.62)',
+    backgroundColor: 'rgba(3, 10, 22, 0.10)',
     paddingHorizontal: 24,
     justifyContent: 'space-between',
   },

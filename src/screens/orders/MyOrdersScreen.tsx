@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getHeaderPaddingTop } from '../../utils/layout';
 import { useAuth } from '../../hooks/useAuth';
 import { OrderData, OrderService } from '../../services/OrderService';
 import { DriverService } from '../../services/DriverService';
@@ -120,7 +121,7 @@ export const MyOrdersScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
       <Loader visible={loading && !refreshing} message="Loading orders..." />
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+      <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>

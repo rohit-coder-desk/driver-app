@@ -383,7 +383,7 @@ export const ForgotPasswordScreen = () => {
       <CustomDriverModal
         visible={successModalVisible}
         type="order_accepted"
-        title="Password Reset Successful! 🎉"
+        title="Password Reset Successful"
         message="Your password has been reset successfully. Please log in with your new password."
         primaryButtonText="Go to Login"
         onPrimaryAction={() => {

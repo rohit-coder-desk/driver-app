@@ -23,6 +23,8 @@ import { ROUTES } from '../../constants/routes';
 import { API_BASE_URL } from '../../config/env';
 import { ZoomableImageViewer } from '../../components/common/ZoomableImageViewer';
 import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
+import { getHeaderPaddingTop } from '../../utils/layout';
+import { CameraIcon } from '../../components/common/Icons';
 import { DriverService } from '../../services/DriverService';
 import { Loader } from '../../components/common/Loader';
 
@@ -131,11 +133,11 @@ export const MyProfileScreen = () => {
       'Choose how you would like to upload your profile photo:',
       [
         {
-          text: '📷 Take Photo with Camera',
+          text: 'Take Photo with Camera',
           onPress: () => handleSelectProfilePhoto(true),
         },
         {
-          text: '🖼️ Choose from Gallery',
+          text: 'Choose from Gallery',
           onPress: () => handleSelectProfilePhoto(false),
         },
         {
@@ -176,6 +178,23 @@ export const MyProfileScreen = () => {
     return (raw as Record<string, any>) || {};
   }, [driver]);
 
+  const formatDateDisplay = (dateStr?: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      const clean = String(dateStr).split('T')[0];
+      if (clean && clean.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return clean;
+      }
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+      }
+    } catch (e) {
+      // fallback
+    }
+    return String(dateStr);
+  };
+
   const rcExpiry = driver?.rcExpiry || docStatuses.rcExpiry || docStatuses.rcPhoto?.expiry;
   const insuranceExpiry = driver?.insuranceExpiry || docStatuses.insuranceExpiry || docStatuses.insurancePhoto?.expiry;
 
@@ -185,7 +204,7 @@ export const MyProfileScreen = () => {
       <Loader visible={uploading} message="Uploading Profile Photo..." />
 
       {/* Header Bar */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+      <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
@@ -248,7 +267,7 @@ export const MyProfileScreen = () => {
               activeOpacity={0.8}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.cameraIconText}>📷</Text>
+              <CameraIcon size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
@@ -282,8 +301,10 @@ export const MyProfileScreen = () => {
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Username</Text>
-            <Text style={styles.infoValue}>{driver?.username || 'N/A'}</Text>
+            <Text style={styles.infoLabel}>Last Name</Text>
+            <Text style={styles.infoValue}>
+              {driver?.lastName || (driver?.name && driver?.name.trim().includes(' ') ? driver?.name.trim().split(/\s+/).slice(1).join(' ') : '') || driver?.username || 'N/A'}
+            </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
@@ -323,7 +344,7 @@ export const MyProfileScreen = () => {
           <View style={styles.divider} />
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Licence Expiry</Text>
-            <Text style={styles.infoValue}>{driver?.drivingLicenceExpiry || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{formatDateDisplay(driver?.drivingLicenceExpiry)}</Text>
           </View>
         </View>
 
@@ -344,12 +365,12 @@ export const MyProfileScreen = () => {
           <View style={styles.divider} />
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>RC Expiry</Text>
-            <Text style={styles.infoValue}>{rcExpiry || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{formatDateDisplay(rcExpiry)}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Insurance Expiry</Text>
-            <Text style={styles.infoValue}>{insuranceExpiry || 'N/A'}</Text>
+            <Text style={styles.infoValue}>{formatDateDisplay(insuranceExpiry)}</Text>
           </View>
         </View>
 
@@ -569,12 +590,18 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontFamily: 'Inter-Regular',
     color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 12,
   },
   infoValueHighlight: {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
     color: '#0066FF',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 12,
   },
   editProfileBtn: {
     backgroundColor: '#0066FF',

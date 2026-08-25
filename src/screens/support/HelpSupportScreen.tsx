@@ -17,6 +17,7 @@ import { ROUTES } from '../../constants/routes';
 
 import { SUPPORT_CATEGORIES, SupportCategory } from '../../data/supportCategories';
 import { CategoryVectorIcon } from '../../components/common/Icons';
+import { getHeaderPaddingTop } from '../../utils/layout';
 
 export const HelpSupportScreen = () => {
   const insets = useSafeAreaInsets();
@@ -46,7 +47,7 @@ export const HelpSupportScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
 
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+      <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={handleBack}

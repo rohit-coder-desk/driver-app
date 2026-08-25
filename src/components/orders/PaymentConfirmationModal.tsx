@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import { CustomDriverModal } from '../common/CustomDriverModal';
+import { EarningsIcon, CheckIcon, DocumentsIcon } from '../common/Icons';
 
 interface PaymentConfirmationModalProps {
   visible: boolean;
@@ -19,9 +20,21 @@ export const PaymentConfirmationModal = ({
   const [selectedMethod, setSelectedMethod] = useState<string>('cash');
 
   const paymentOptions = [
-    { id: 'cash', label: 'Cash Collected', icon: '💵' },
-    { id: 'paid_online', label: 'Paid Online', icon: '💳' },
-    { id: 'already_paid', label: 'Already Paid', icon: '✅' },
+    {
+      id: 'cash',
+      label: 'Cash Collected',
+      renderIcon: (color: string) => <EarningsIcon size={18} color={color} />,
+    },
+    {
+      id: 'paid_online',
+      label: 'Paid Online',
+      renderIcon: (color: string) => <DocumentsIcon size={18} color={color} />,
+    },
+    {
+      id: 'already_paid',
+      label: 'Already Paid',
+      renderIcon: (color: string) => <CheckIcon size={18} color={color} />,
+    },
   ];
 
   return (
@@ -39,6 +52,7 @@ export const PaymentConfirmationModal = ({
       <View style={styles.optionsContainer}>
         {paymentOptions.map((opt) => {
           const isSelected = selectedMethod === opt.id;
+          const activeColor = isSelected ? '#0066FF' : '#64748B';
           return (
             <TouchableOpacity
               key={opt.id}
@@ -49,7 +63,9 @@ export const PaymentConfirmationModal = ({
               onPress={() => setSelectedMethod(opt.id)}
               activeOpacity={0.8}
             >
-              <Text style={styles.optionIcon}>{opt.icon}</Text>
+              <View style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                {opt.renderIcon(activeColor)}
+              </View>
               <Text
                 style={[
                   styles.optionLabel,

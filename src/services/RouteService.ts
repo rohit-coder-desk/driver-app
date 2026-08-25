@@ -5,7 +5,7 @@ export interface LatLng {
   longitude: number;
 }
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyArjBYpH-Hqe0nTcbmN53RIwHvvLyPsaf8';
+const GOOGLE_MAPS_API_KEY = '';
 
 /**
  * Decodes an encoded Google Maps Polyline string into an array of LatLng points.
@@ -87,31 +87,35 @@ export class RouteService {
     }
 
     // 1. Primary Provider: Google Directions API (Official Google Navigation Route)
-    try {
-      const googleUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
-      console.log('[DEBUG-NAV] Requesting official Google Directions API route...');
-      const response = await axios.get(googleUrl, { timeout: 6000 });
-      if (
-        response.data &&
-        response.data.status === 'OK' &&
-        response.data.routes &&
-        response.data.routes.length > 0 &&
-        response.data.routes[0].overview_polyline &&
-        response.data.routes[0].overview_polyline.points
-      ) {
-        const encodedPolyline = response.data.routes[0].overview_polyline.points;
-        const decodedPoints = decodePolyline(encodedPolyline);
-        console.log(`[DEBUG-NAV] ✅ Google Directions success! Extracted ${decodedPoints.length} exact road points.`);
-        if (decodedPoints.length >= 3) {
-          lastSuccessRouteCache.set(cacheKey, decodedPoints);
-          return decodedPoints;
+    if (GOOGLE_MAPS_API_KEY) {
+      try {
+        const googleUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
+        console.log('[DEBUG-NAV] Requesting official Google Directions API route...');
+        const response = await axios.get(googleUrl, { timeout: 6000 });
+
+        if (
+          response.data &&
+          response.data.status === 'OK' &&
+          response.data.routes &&
+          response.data.routes.length > 0 &&
+          response.data.routes[0].overview_polyline &&
+          response.data.routes[0].overview_polyline.points
+        ) {
+          const encodedPolyline = response.data.routes[0].overview_polyline.points;
+          const decodedPoints = decodePolyline(encodedPolyline);
+          console.log(`[DEBUG-NAV] ✅ Google Directions success! Extracted ${decodedPoints.length} exact road points.`);
+          if (decodedPoints.length >= 3) {
+            lastSuccessRouteCache.set(cacheKey, decodedPoints);
+            return decodedPoints;
+          }
+        } else {
+          console.warn('[DEBUG-NAV] Google Directions returned non-OK status:', response.data?.status || 'EMPTY');
         }
-      } else {
-        console.warn('[DEBUG-NAV] Google Directions returned non-OK status:', response.data?.status || 'EMPTY');
+      } catch (googleErr: any) {
+        console.warn('[DEBUG-NAV] Google Directions request failed:', googleErr?.message || googleErr);
       }
-    } catch (googleErr: any) {
-      console.warn('[DEBUG-NAV] Google Directions request failed:', googleErr?.message || googleErr);
     }
+
 
     // 2. Fallback Provider: OSRM Mirrors (Strict Driving Route)
     const osrmEndpoints = [

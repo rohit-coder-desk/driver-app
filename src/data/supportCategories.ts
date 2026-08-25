@@ -20,7 +20,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'documents',
     title: 'Document Verification',
-    icon: '📄',
+    icon: 'documents',
     description: 'Rejection details, pending review status, and photo upload assistance.',
     issues: [
       {
@@ -49,7 +49,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'trips',
     title: 'Trips & Orders',
-    icon: '🚗',
+    icon: 'trips',
     description: 'Trip requests, starting orders, completing deliveries, and cancellations.',
     issues: [
       {
@@ -85,7 +85,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'earnings',
     title: 'Earnings & Payments',
-    icon: '💰',
+    icon: 'earnings',
     description: 'Weekly payouts, fare breakdowns, incentives, and bonus tracking.',
     issues: [
       {
@@ -114,7 +114,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'navigation',
     title: 'GPS & Navigation',
-    icon: '📍',
+    icon: 'navigation',
     description: 'Location accuracy, map calibration, and turn-by-turn guidance.',
     issues: [
       {
@@ -141,7 +141,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'account',
     title: 'Account & Profile',
-    icon: '👤',
+    icon: 'account',
     description: 'Login troubleshooting, password reset, profile edits, and account status.',
     issues: [
       {
@@ -175,7 +175,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'vehicle',
     title: 'Vehicle',
-    icon: '🚙',
+    icon: 'vehicle',
     description: 'Vehicle details update, RC upload, and insurance renewal.',
     issues: [
       {
@@ -204,7 +204,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'app_issues',
     title: 'App Issues',
-    icon: '⚙️',
+    icon: 'app_issues',
     description: 'Crash reports, performance optimization, and notification alerts.',
     issues: [
       {
@@ -227,7 +227,7 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   {
     id: 'faqs',
     title: 'FAQs',
-    icon: '❓',
+    icon: 'faqs',
     description: 'Frequently asked questions and driver guide tips.',
     issues: [
       {

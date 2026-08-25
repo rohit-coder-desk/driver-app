@@ -11,25 +11,29 @@ import HelpSupportScreen from '../screens/support/HelpSupportScreen';
 import SupportCategoryDetailScreen from '../screens/support/SupportCategoryDetailScreen';
 import EarningsScreen from '../screens/earnings/EarningsScreen';
 
+import { GlobalOfferOverlay } from '../components/orders/GlobalOfferOverlay';
+
 const Stack = createNativeStackNavigator();
 
 export const AppStack = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name={ROUTES.HOME} component={HomeScreen} />
-      <Stack.Screen name={ROUTES.MY_PROFILE} component={MyProfileScreen} />
-      <Stack.Screen name={ROUTES.PROFILE} component={ProfileScreen} />
-      <Stack.Screen name={ROUTES.MY_ORDERS} component={MyOrdersScreen} />
-      <Stack.Screen name={ROUTES.ORDER_DETAILS} component={OrderDetailsScreen} />
-      <Stack.Screen name={ROUTES.DOCUMENTS} component={DocumentsScreen} />
-      <Stack.Screen name={ROUTES.HELP_SUPPORT} component={HelpSupportScreen} />
-      <Stack.Screen name={ROUTES.SUPPORT_CATEGORY_DETAIL} component={SupportCategoryDetailScreen} />
-      <Stack.Screen name={ROUTES.EARNINGS} component={EarningsScreen} />
-    </Stack.Navigator>
+    <GlobalOfferOverlay>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name={ROUTES.HOME} component={HomeScreen} />
+        <Stack.Screen name={ROUTES.MY_PROFILE} component={MyProfileScreen} />
+        <Stack.Screen name={ROUTES.PROFILE} component={ProfileScreen} />
+        <Stack.Screen name={ROUTES.MY_ORDERS} component={MyOrdersScreen} />
+        <Stack.Screen name={ROUTES.ORDER_DETAILS} component={OrderDetailsScreen} />
+        <Stack.Screen name={ROUTES.DOCUMENTS} component={DocumentsScreen} />
+        <Stack.Screen name={ROUTES.HELP_SUPPORT} component={HelpSupportScreen} />
+        <Stack.Screen name={ROUTES.SUPPORT_CATEGORY_DETAIL} component={SupportCategoryDetailScreen} />
+        <Stack.Screen name={ROUTES.EARNINGS} component={EarningsScreen} />
+      </Stack.Navigator>
+    </GlobalOfferOverlay>
   );
 };
 export default AppStack;

@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getHeaderPaddingTop } from '../../utils/layout';
 import { useAuth } from '../../hooks/useAuth';
 import { DriverService } from '../../services/DriverService';
 import { ROUTES } from '../../constants/routes';
@@ -233,7 +234,7 @@ export const EarningsScreen = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0B2246" />
 
       {/* Header Bar */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+      <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {

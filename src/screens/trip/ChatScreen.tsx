@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getHeaderPaddingTop } from '../../utils/layout';
+import { PhoneIcon, ChatBubbleIcon } from '../../components/common/Icons';
 import apiClient from '../../api/axios';
 
 export interface ChatMessage {
@@ -123,7 +125,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 16) }]}>
+        <View style={[styles.header, { paddingTop: getHeaderPaddingTop(insets.top) }]}>
           {onBack ? (
             <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
               <Text style={styles.backBtnText}>←</Text>
@@ -137,7 +139,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
           {customerPhone ? (
             <TouchableOpacity style={styles.callBtn} onPress={handleCallCustomer} activeOpacity={0.8}>
-              <Text style={styles.callBtnIcon}>📞</Text>
+              <PhoneIcon size={18} color="#FFFFFF" />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -170,7 +172,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           </View>
         ) : messages.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>💬</Text>
+            <ChatBubbleIcon size={44} color="#64748B" />
             <Text style={styles.emptyTitle}>In-App Customer Chat</Text>
             <Text style={styles.emptySubtitle}>
               No messages yet. Send a message to communicate with the customer directly inside the app.
