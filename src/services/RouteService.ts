@@ -51,10 +51,10 @@ function decodePolyline(encoded: string): LatLng[] {
 const lastSuccessRouteCache = new Map<string, LatLng[]>();
 
 function getCacheKey(origin: LatLng, destination: LatLng): string {
-  const oLat = Number(origin.latitude).toFixed(3);
-  const oLng = Number(origin.longitude).toFixed(3);
-  const dLat = Number(destination.latitude).toFixed(3);
-  const dLng = Number(destination.longitude).toFixed(3);
+  const oLat = (Number(origin.latitude) || 0).toFixed(3);
+  const oLng = (Number(origin.longitude) || 0).toFixed(3);
+  const dLat = (Number(destination.latitude) || 0).toFixed(3);
+  const dLng = (Number(destination.longitude) || 0).toFixed(3);
   return `${oLat},${oLng}->${dLat},${dLng}`;
 }
 
@@ -68,12 +68,21 @@ export class RouteService {
     destination: LatLng
   ): Promise<LatLng[]> {
     console.log('[DEBUG-NAV] RouteService.getRoadRoute called:', { origin, destination });
-    if (!origin || !destination) {
-      console.warn('[DEBUG-NAV] RouteService: origin or destination missing!');
-      return [];
-    }
-    if (!origin.latitude || !origin.longitude || !destination.latitude || !destination.longitude) {
-      console.warn('[DEBUG-NAV] RouteService: invalid lat/lng numbers!', { origin, destination });
+    if (
+      !origin ||
+      !destination ||
+      typeof origin.latitude !== 'number' ||
+      typeof origin.longitude !== 'number' ||
+      typeof destination.latitude !== 'number' ||
+      typeof destination.longitude !== 'number' ||
+      isNaN(origin.latitude) ||
+      isNaN(origin.longitude) ||
+      isNaN(destination.latitude) ||
+      isNaN(destination.longitude) ||
+      (origin.latitude === 0 && origin.longitude === 0) ||
+      (destination.latitude === 0 && destination.longitude === 0)
+    ) {
+      console.warn('[DEBUG-NAV] RouteService: Invalid origin or destination coordinates!', { origin, destination });
       return [];
     }
 
@@ -135,10 +144,17 @@ export class RouteService {
           response.data.routes[0].geometry.coordinates
         ) {
           const coords: [number, number][] = response.data.routes[0].geometry.coordinates;
-          const polylinePoints: LatLng[] = coords.map(([lng, lat]) => ({
-            latitude: lat,
-            longitude: lng,
-          }));
+          const polylinePoints: LatLng[] = coords
+            .map(([lng, lat]) => ({
+              latitude: Number(lat),
+              longitude: Number(lng),
+            }))
+            .filter(
+              (p) =>
+                !isNaN(p.latitude) &&
+                !isNaN(p.longitude) &&
+                !(p.latitude === 0 && p.longitude === 0)
+            );
 
           console.log('[DEBUG-NAV] OSRM success! Polyline points count:', polylinePoints.length);
           if (polylinePoints.length >= 3) {
@@ -152,8 +168,10 @@ export class RouteService {
     }
 
     // 3. Fallback: If cache has any previous route for this destination, reuse it
+    const destLatStr = (Number(destination.latitude) || 0).toFixed(3);
+    const destLngStr = (Number(destination.longitude) || 0).toFixed(3);
     for (const [key, cachedPoints] of lastSuccessRouteCache.entries()) {
-      if (key.endsWith(`->${Number(destination.latitude).toFixed(3)},${Number(destination.longitude).toFixed(3)}`)) {
+      if (key.endsWith(`->${destLatStr},${destLngStr}`)) {
         console.log('[DEBUG-NAV] Reusing previous cached route for destination:', key);
         return cachedPoints;
       }
@@ -162,8 +180,8 @@ export class RouteService {
     // 4. Fallback 4: Direct Straight Line
     console.warn('[DEBUG-NAV] Fallback to direct origin-destination line');
     return [
-      { latitude: origin.latitude, longitude: origin.longitude },
-      { latitude: destination.latitude, longitude: destination.longitude },
+      { latitude: Number(origin.latitude), longitude: Number(origin.longitude) },
+      { latitude: Number(destination.latitude), longitude: Number(destination.longitude) },
     ];
   }
 }

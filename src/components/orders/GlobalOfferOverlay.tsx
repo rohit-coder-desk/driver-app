@@ -9,6 +9,7 @@ import {
   Alert,
   LayoutAnimation,
   UIManager,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,7 +92,9 @@ export const GlobalOfferOverlay: React.FC<GlobalOfferOverlayProps> = ({ children
               );
 
               if (sorted.length !== prev.length) {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                try {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                } catch (e) {}
               }
               return sorted;
             });
@@ -118,8 +121,12 @@ export const GlobalOfferOverlay: React.FC<GlobalOfferOverlayProps> = ({ children
     voiceService.stop();
     try {
       await OrderService.acceptOffer(offer.id);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      try {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      } catch (e) {}
       setIncomingOffers((prev) => prev.filter((o) => o.id !== offer.id));
+
+      DeviceEventEmitter.emit('ORDER_ACCEPTED', offer.order);
 
       // Navigate to Home screen to show active order map/details
       if (navigation && navigation.navigate) {

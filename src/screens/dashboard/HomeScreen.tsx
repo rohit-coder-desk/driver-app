@@ -20,6 +20,7 @@ import {
   Linking,
   LayoutAnimation,
   UIManager,
+  DeviceEventEmitter,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -30,7 +31,7 @@ import { ServiceAreaConfig } from '../../types/serviceArea.types';
 import { DEFAULT_SERVICE_AREA, clampRegionToBounds, isRegionOutOfBounds } from '../../utils/mapBoundaryUtils';
 import { DriverService } from '../../services/DriverService';
 import { LocationService } from '../../services/LocationService';
-import { OrderService, OrderData, OrderOfferData } from '../../services/OrderService';
+import { OrderService, OrderData, OrderOfferData, parseLocation } from '../../services/OrderService';
 import { RouteService, LatLng } from '../../services/RouteService';
 import { voiceService } from '../../services/VoiceService';
 import { OrderRequestModal } from '../../components/orders/OrderRequestModal';
@@ -136,7 +137,7 @@ export const HomeScreen = () => {
     return R * c;
   };
 
-  // Initialize VoiceService for TTS offer alerts
+  // Initialize VoiceService for offer alert sound
   useEffect(() => {
     voiceService.initialize();
     return () => {
@@ -220,7 +221,7 @@ export const HomeScreen = () => {
     let dm = order.deliveryMethod || order.delivery_method;
     let configs = dm?.configs || order?.configs;
     if (typeof configs === 'string') {
-      try { configs = JSON.parse(configs); } catch (e) {}
+      try { configs = JSON.parse(configs); } catch (e) { }
     }
 
     if (!configs && (dm === null || dm === undefined)) {
@@ -241,7 +242,7 @@ export const HomeScreen = () => {
     let dm = order.deliveryMethod || order.delivery_method;
     let configs = dm?.configs || order?.configs;
     if (typeof configs === 'string') {
-      try { configs = JSON.parse(configs); } catch (e) {}
+      try { configs = JSON.parse(configs); } catch (e) { }
     }
 
     if (!configs && (dm === null || dm === undefined)) {
@@ -554,6 +555,27 @@ export const HomeScreen = () => {
     }
   }, [driver]);
 
+  // Listen for global offer acceptance
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('ORDER_ACCEPTED', (orderData) => {
+      console.log('[HOME-SCREEN] ORDER_ACCEPTED event received:', orderData);
+      if (orderData) {
+        const parsed = {
+          ...orderData,
+          status: 'assigned',
+          pickup: parseLocation(orderData.pickup, true),
+          dropoff: parseLocation(orderData.dropoff, false),
+        };
+        setActiveOrder(parsed);
+        showDriverModal('order_accepted', 'Order Accepted!', 'Proceeding to pickup location.', "Let's Go");
+      }
+      checkActiveOrder();
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [driver]);
+
   // Re-check active order status when HomeScreen comes back into focus
   useEffect(() => {
     if (isFocused && driver) {
@@ -697,7 +719,9 @@ export const HomeScreen = () => {
       setIncomingOffer(null);
 
       // Remove accepted offer from pending stack (Constraint 5)
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      try {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      } catch (e) {}
       setIncomingOffers((prev) => prev.filter((o) => o.id !== offer.id));
 
       const orderData = offer.order;
@@ -708,7 +732,12 @@ export const HomeScreen = () => {
       });
 
       // Existing activeOrder flow handles accepted order exactly as before
-      setActiveOrder({ ...orderData, status: 'assigned' });
+      setActiveOrder({
+        ...orderData,
+        status: 'assigned',
+        pickup: parseLocation(orderData?.pickup, true),
+        dropoff: parseLocation(orderData?.dropoff, false),
+      });
 
       showDriverModal('order_accepted', 'Order Accepted!', 'Proceeding to pickup location.', "Let's Go");
     } catch (err: any) {
@@ -732,7 +761,9 @@ export const HomeScreen = () => {
       setOfferModalVisible(false);
       setIncomingOffer(null);
       // Remove rejected offer from pending stack (Constraint 2)
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      try {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      } catch (e) {}
       setIncomingOffers((prev) => prev.filter((o) => o.id !== offer.id));
       setReviewModalVisible(false);
       setCompletedOrderForReview(null);
@@ -1286,18 +1317,28 @@ export const HomeScreen = () => {
               const targetKey = `${activeOrder.id}_${isPickedUp ? 'dropoff' : 'pickup'}`;
               const cachedRoute = routeCacheRef.current[targetKey] || GLOBAL_ROUTE_CACHE[targetKey];
 
-              const polylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
+              const isValidCoord = (pt: any) =>
+                pt &&
+                typeof pt.latitude === 'number' &&
+                typeof pt.longitude === 'number' &&
+                !isNaN(pt.latitude) &&
+                !isNaN(pt.longitude) &&
+                !(pt.latitude === 0 && pt.longitude === 0);
+
+              const rawPolylinePoints = (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length >= 3)
                 ? routeCoordinates
                 : (targetLat !== 0 && targetLng !== 0 && cachedRoute && cachedRoute.length >= 3)
                   ? cachedRoute
                   : (targetLat !== 0 && targetLng !== 0 && routeCoordinates.length === 2)
                     ? routeCoordinates
-                    : (targetLat !== 0 && targetLng !== 0)
+                    : (targetLat !== 0 && targetLng !== 0 && startLoc?.latitude && startLoc?.longitude)
                       ? [
-                        { latitude: startLoc.latitude, longitude: startLoc.longitude },
-                        { latitude: targetLat, longitude: targetLng }
+                        { latitude: Number(startLoc.latitude), longitude: Number(startLoc.longitude) },
+                        { latitude: Number(targetLat), longitude: Number(targetLng) }
                       ]
                       : [];
+
+              const polylinePoints = rawPolylinePoints.filter(isValidCoord);
 
               if (__DEV__) {
                 console.log('[ROUTE-RENDER-DEBUG]', {
@@ -1392,7 +1433,7 @@ export const HomeScreen = () => {
       )}
 
       {/* Top Header Card matching reference image */}
-      <View style={[styles.floatingHeaderCard, { top: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 28) }]}>
+      <View style={[styles.floatingHeaderCard, { top: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 24) + 10) }]}>
         {/* Hamburger Menu Trigger */}
         <TouchableOpacity
           style={styles.hamburgerBtn}
@@ -1431,7 +1472,7 @@ export const HomeScreen = () => {
       {/* Floating Expiry Warning Banner (30, 15, 7, 3, 1, 0 days) */}
       {(driver?.warningBanner || driver?.docExpiryInfo?.warningBanner) && (
         <TouchableOpacity
-          style={[styles.warningBannerContainer, { top: Math.max(insets.top + 76, 92) }]}
+          style={[styles.warningBannerContainer, { top: Math.max(insets.top + 76, (StatusBar.currentHeight || 24) + 72) }]}
           onPress={() => {
             const warningDoc = driver?.docExpiryInfo?.warningDocuments?.[0];
             const targetDocKey = warningDoc?.key || 'insurance';

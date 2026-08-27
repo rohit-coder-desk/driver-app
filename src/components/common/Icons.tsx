@@ -461,11 +461,11 @@ export const PhoneIcon: React.FC<IconProps> = ({ color = '#34D399', size = 22 })
     <View style={[styles.iconBase, { width: size, height: size, justifyContent: 'center', alignItems: 'center' }]}>
       <View
         style={{
-          width: 18 * scale,
-          height: 18 * scale,
+          width: 4 * scale,
+          height: 19   * scale,
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          transform: [{ rotate: '-45deg' }],
+          // transform: [{ rotate: '-15deg' }],
         }}
       >
         {/* Top Earpiece Cup (Solid) */}
@@ -494,8 +494,8 @@ export const PhoneIcon: React.FC<IconProps> = ({ color = '#34D399', size = 22 })
         {/* Bottom Mouthpiece Cup (Solid) */}
         <View
           style={{
-            width: 9.5 * scale,
-            height: 5.2 * scale,
+            width: 11 * scale,
+            height: 4.8 * scale,
             backgroundColor: color,
             borderBottomLeftRadius: 3.5 * scale,
             borderBottomRightRadius: 3.5 * scale,
